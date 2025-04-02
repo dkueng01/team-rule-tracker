@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, LogOut, Plus } from "lucide-react"
 
@@ -28,6 +28,7 @@ import { teams } from "@/data/teams"
 import { users } from "@/data/users"
 
 export default function AdminDashboardPage({ params }: any) {
+  const { id } = use<any>(params);
   const [user, setUser] = useState<any>(null)
   const [team, setTeam] = useState<any>(null)
   const [teamRules, setTeamRules] = useState<any[]>([])
@@ -69,7 +70,7 @@ export default function AdminDashboardPage({ params }: any) {
     setUser(userData)
 
     // Get team data
-    const teamData = teams.find((t) => t.id === Number.parseInt(params.id))
+    const teamData = teams.find((t) => t.id === Number.parseInt(id))
     if (!teamData) {
       router.push("/teams")
       return
@@ -81,7 +82,7 @@ export default function AdminDashboardPage({ params }: any) {
     const isAdmin = userData.role === "admin" || teamData.adminIds.includes(currentUser?.id)
 
     if (!isAdmin) {
-      router.push(`/teams/${params.id}`)
+      router.push(`/teams/${id}`)
       return
     }
 
@@ -112,7 +113,7 @@ export default function AdminDashboardPage({ params }: any) {
 
     setTotalPoolAmount(totalBreakAmount)
     setCurrentPoolAmount(totalPaymentAmount)
-  }, [params.id, router])
+  }, [id, router])
 
   const handleLogout = () => {
     localStorage.removeItem("user")
@@ -120,7 +121,7 @@ export default function AdminDashboardPage({ params }: any) {
   }
 
   const handleBackToTeam = () => {
-    router.push(`/teams/${params.id}`)
+    router.push(`/teams/${id}`)
   }
 
   const handleAddRule = () => {

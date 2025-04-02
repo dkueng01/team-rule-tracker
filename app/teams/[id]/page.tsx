@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, LogOut } from "lucide-react"
 
@@ -16,6 +16,7 @@ import { teams } from "@/data/teams"
 import { users } from "@/data/users"
 
 export default function TeamDetailsPage({ params }: any) {
+  const { id } = use<any>(params);
   const [user, setUser] = useState<any>(null)
   const [team, setTeam] = useState<any>(null)
   const [teamRules, setTeamRules] = useState<any[]>([])
@@ -38,7 +39,7 @@ export default function TeamDetailsPage({ params }: any) {
     setUser(userData)
 
     // Get team data
-    const teamData: any = teams.find((t) => t.id === Number.parseInt(params.id))
+    const teamData: any = teams.find((t) => t.id === Number.parseInt(id))
     if (!teamData) {
       router.push("/teams")
       return
@@ -82,7 +83,7 @@ export default function TeamDetailsPage({ params }: any) {
 
     setTotalPoolAmount(totalBreakAmount)
     setCurrentPoolAmount(totalPaymentAmount)
-  }, [params.id, router])
+  }, [id, router])
 
   const handleLogout = () => {
     localStorage.removeItem("user")
@@ -94,7 +95,7 @@ export default function TeamDetailsPage({ params }: any) {
   }
 
   const handleAdminDashboard = () => {
-    router.push(`/teams/${params.id}/admin`)
+    router.push(`/teams/${id}/admin`)
   }
 
   if (!user || !team) {
