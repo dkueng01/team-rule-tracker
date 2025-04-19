@@ -46,14 +46,6 @@ export default function TeamsPage() {
     return null
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading...</p>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <header className="flex justify-between items-center p-4 border-b">
@@ -70,16 +62,20 @@ export default function TeamsPage() {
         <div className="flex items-center gap-2 mb-6">
           <User className="h-5 w-5" />
           <h2 className="text-lg font-medium">
-            welcome user
-            {/* Welcome, {user.username} ({user.role}) */}
+            Welcome, {user.primaryEmail}!
           </h2>
         </div>
 
         <h2 className="text-2xl font-bold mb-4">Your Teams</h2>
 
-        {userTeams.length === 0 ? (
+        {userTeams.length === 0 ?
+        loading === false ?
+        <div className="flex flex-col items-center justify-center h-full">
           <p>You are not a member of any teams.</p>
-        ) : (
+        </div>
+        : <div className="flex flex-col items-center justify-center h-full">
+          <p>Loading ...</p>
+        </div> : (
           <div className="flex flex-wrap gap-4">
             {userTeams.map((team) => (
               <Card

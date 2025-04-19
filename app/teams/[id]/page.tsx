@@ -95,16 +95,16 @@ export default function TeamDetailsPage({ params }: any) {
   }, [id, router])
 
   const handleLogout = () => {
-    localStorage.removeItem("user")
-    router.push("/")
+    localStorage.removeItem("user");
+    router.push("/");
   }
 
   const handleBackToTeams = () => {
-    router.push("/teams")
+    router.push("/");
   }
 
   const handleAdminDashboard = () => {
-    router.push(`/teams/${id}/admin`)
+    router.push(`/teams/${id}/admin`);
   }
 
   if (!user || !team) {
