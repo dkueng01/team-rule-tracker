@@ -1,85 +1,110 @@
 "use client"
+import { useUser } from "@stackframe/stack";
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { LogOut, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Team } from "@/types/team";
 
-export default function LoginPage() {
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
+export default function TeamsPage() {
+  useUser({ or: 'redirect' });
+  const user = useUser();
+  const [loading, setLoading] = useState(true);
+  const [userTeams, setUserTeams] = useState<Team[]>([])
   const router = useRouter()
 
-  const handleLogin = (e) => {
-    e.preventDefault()
-
-    // Simple validation
-    if (!username || !password) {
-      setError("Please enter both username and password")
-      return
+  useEffect(() => {
+    async function fetchUserTeams() {
+      setLoading(true);
+      const res = await fetch("/api/my-teams")
+      const data = await res.json()
+      setUserTeams(data)
+      setLoading(false);
     }
 
-    // Mock authentication - in a real app, this would call an API
-    if (username === "user" && password === "password") {
-      localStorage.setItem("user", JSON.stringify({ username, role: "user" }))
-      router.push("/teams")
-    } else if (username === "admin" && password === "admin") {
-      localStorage.setItem("user", JSON.stringify({ username, role: "admin" }))
-      router.push("/teams")
-    } else {
-      setError("Invalid credentials. Try user/password or admin/admin")
-    }
+    fetchUserTeams()
+  }, [])
+
+  useEffect(() => {
+    console.log('userTeams', userTeams);
+  }, [userTeams]);
+
+  const handleLogout = () => {
+    if (!user) return
+    user.signOut()
+    router.push("/")
+  }
+
+  const handleTeamClick = (teamId: number) => {
+    router.push(`/teams/${teamId}`)
+  }
+
+  if (!user) {
+    return null
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">Team Rule Tracker</CardTitle>
-          <CardDescription className="text-center">Sign in to manage your team rules and finances</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-              />
-            </div>
+    <div className="min-h-screen bg-background">
+      <header className="flex justify-between items-center p-4 border-b">
+        <h1 className="text-xl font-bold">Team Rule Tracker</h1>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="flex items-center gap-2">
+            <LogOut className="h-4 w-4" />
+            <span>Logout</span>
+          </Button>
+        </div>
+      </header>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-              />
-            </div>
+      <main className="container mx-auto p-4">
+        <div className="flex items-center gap-2 mb-6">
+          <User className="h-5 w-5" />
+          <h2 className="text-lg font-medium">
+            welcome user
+            {/* Welcome, {user.username} ({user.role}) */}
+          </h2>
+        </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+        <h2 className="text-2xl font-bold mb-4">Your Teams</h2>
 
-            <Button type="submit" className="w-full bg-[#255F38] hover:bg-[#1d4a2c]">
-              Sign In
-            </Button>
-
-            <div className="text-sm text-muted-foreground text-center mt-2">
-              <p>Demo credentials:</p>
-              <p>User: user/password</p>
-              <p>Admin: admin/admin</p>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+        {userTeams.length === 0 ? (
+          <p>You are not a member of any teams.</p>
+        ) : (
+          <div className="flex flex-wrap gap-4">
+            {userTeams.map((team) => (
+              <Card
+                key={team.id}
+                className="w-full md:w-[calc(50%-0.5rem)] lg:w-[calc(33.33%-1rem)] cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleTeamClick(team.id)}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle>{team.name}</CardTitle>
+                  <CardDescription>{team.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">Members: {team.memberCount}</p>
+                  <p className="text-sm">Rules: {team.ruleCount}</p>
+                </CardContent>
+                <CardFooter>
+                  <Button variant="outline" className="w-full" onClick={() => handleTeamClick(team.id)}>
+                    View Team
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   )
 }
