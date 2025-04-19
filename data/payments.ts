@@ -56,4 +56,3 @@ export const payments = [
     date: "2023-04-18T10:30:00Z",
   },
 ]
-

@@ -10,8 +10,8 @@ import { teams } from "@/data/teams"
 import { users } from "@/data/users"
 
 export default function TeamsPage() {
-  const [user, setUser] = useState<any>(null)
-  const [userTeams, setUserTeams] = useState<any[]>([])
+  const [user, setUser] = useState(null)
+  const [userTeams, setUserTeams] = useState([])
   const router = useRouter()
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function TeamsPage() {
     // Get user's teams
     const currentUser = users.find((u) => u.username === userData.username)
     if (currentUser) {
-      const filteredTeams: any = teams.filter((team) => currentUser.teamIds.includes(team.id))
+      const filteredTeams = teams.filter((team) => currentUser.teamIds.includes(team.id))
       setUserTeams(filteredTeams)
     }
   }, [router])
@@ -38,7 +38,7 @@ export default function TeamsPage() {
     router.push("/")
   }
 
-  const handleTeamClick = (teamId: any) => {
+  const handleTeamClick = (teamId) => {
     router.push(`/teams/${teamId}`)
   }
 
@@ -99,4 +99,3 @@ export default function TeamsPage() {
     </div>
   )
 }
-

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { expenses } from "@/data/expenses"
 import { payments } from "@/data/payments"
 import { ruleBreaks } from "@/data/rule-breaks"
 import { rules } from "@/data/rules"
@@ -16,15 +17,17 @@ import { teams } from "@/data/teams"
 import { users } from "@/data/users"
 
 export default function TeamDetailsPage({ params }: any) {
-  const { id } = use<any>(params);
-  const [user, setUser] = useState<any>(null)
-  const [team, setTeam] = useState<any>(null)
-  const [teamRules, setTeamRules] = useState<any[]>([])
-  const [teamRuleBreaks, setTeamRuleBreaks] = useState<any[]>([])
-  const [teamPayments, setTeamPayments] = useState<any[]>([])
+  const { id } = use(params);
+  const [user, setUser] = useState(null)
+  const [team, setTeam] = useState(null)
+  const [teamRules, setTeamRules] = useState([])
+  const [teamRuleBreaks, setTeamRuleBreaks] = useState([])
+  const [teamPayments, setTeamPayments] = useState([])
+  const [teamExpenses, setTeamExpenses] = useState([])
   const [userDebt, setUserDebt] = useState(0)
   const [totalPoolAmount, setTotalPoolAmount] = useState(0)
   const [currentPoolAmount, setCurrentPoolAmount] = useState(0)
+  const [availablePoolAmount, setAvailablePoolAmount] = useState(0)
   const router = useRouter()
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export default function TeamDetailsPage({ params }: any) {
     setUser(userData)
 
     // Get team data
-    const teamData: any = teams.find((t) => t.id === Number.parseInt(id))
+    const teamData = teams.find((t) => t.id === Number.parseInt(id))
     if (!teamData) {
       router.push("/teams")
       return
@@ -47,42 +50,48 @@ export default function TeamDetailsPage({ params }: any) {
     setTeam(teamData)
 
     // Get team rules
-    const filteredRules: any = rules.filter((rule) => rule.teamId === teamData.id)
+    const filteredRules = rules.filter((rule) => rule.teamId === teamData.id)
     setTeamRules(filteredRules)
 
     // Get team rule breaks
-    const filteredRuleBreaks: any = ruleBreaks.filter((rb) => rb.teamId === teamData.id)
+    const filteredRuleBreaks = ruleBreaks.filter((rb) => rb.teamId === teamData.id)
     setTeamRuleBreaks(filteredRuleBreaks)
 
     // Get team payments
-    const filteredPayments: any = payments.filter((payment) => payment.teamId === teamData.id)
+    const filteredPayments = payments.filter((payment) => payment.teamId === teamData.id)
     setTeamPayments(filteredPayments)
+
+    // Get team expenses
+    const filteredExpenses = expenses.filter((expense) => expense.teamId === teamData.id)
+    setTeamExpenses(filteredExpenses)
 
     // Calculate user debt
     const currentUser = users.find((u) => u.username === userData.username)
     if (currentUser) {
-      const userBreaks = filteredRuleBreaks.filter((rb: any) => rb.userId === currentUser.id)
-      const userBreakTotal = userBreaks.reduce((total: any, rb: any) => {
-        const ruleAmount = filteredRules.find((r: any) => r.id === rb.ruleId)?.amount || 0
+      const userBreaks = filteredRuleBreaks.filter((rb) => rb.userId === currentUser.id)
+      const userBreakTotal = userBreaks.reduce((total, rb) => {
+        const ruleAmount = filteredRules.find((r) => r.id === rb.ruleId)?.amount || 0
         return total + ruleAmount
       }, 0)
 
-      const userPayments = filteredPayments.filter((p: any) => p.userId === currentUser.id)
-      const userPaymentTotal = userPayments.reduce((total: any, p: any) => total + p.amount, 0)
+      const userPayments = filteredPayments.filter((p) => p.userId === currentUser.id)
+      const userPaymentTotal = userPayments.reduce((total, p) => total + p.amount, 0)
 
       setUserDebt(userBreakTotal - userPaymentTotal)
     }
 
     // Calculate pool amounts
-    const totalBreakAmount = filteredRuleBreaks.reduce((total: any, rb: any) => {
-      const ruleAmount = filteredRules.find((r: any) => r.id === rb.ruleId)?.amount || 0
+    const totalBreakAmount = filteredRuleBreaks.reduce((total, rb) => {
+      const ruleAmount = filteredRules.find((r) => r.id === rb.ruleId)?.amount || 0
       return total + ruleAmount
     }, 0)
 
-    const totalPaymentAmount = filteredPayments.reduce((total: any, p: any) => total + p.amount, 0)
+    const totalPaymentAmount = filteredPayments.reduce((total, p) => total + p.amount, 0)
+    const totalExpenseAmount = filteredExpenses.reduce((total, e) => total + e.amount, 0)
 
     setTotalPoolAmount(totalBreakAmount)
     setCurrentPoolAmount(totalPaymentAmount)
+    setAvailablePoolAmount(totalPaymentAmount - totalExpenseAmount)
   }, [id, router])
 
   const handleLogout = () => {
@@ -154,10 +163,15 @@ export default function TeamDetailsPage({ params }: any) {
             </CardHeader>
             <CardContent>
               <div className="flex justify-between mb-2">
-                <span>Current: €{currentPoolAmount.toFixed(2)}</span>
+                <span>Current: €{availablePoolAmount.toFixed(2)}</span>
                 <span>Expected: €{totalPoolAmount.toFixed(2)}</span>
               </div>
               <Progress value={(currentPoolAmount / totalPoolAmount) * 100} className="h-2" />
+              {teamExpenses.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  €{(currentPoolAmount - availablePoolAmount).toFixed(2)} spent on team expenses
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -167,6 +181,7 @@ export default function TeamDetailsPage({ params }: any) {
             <TabsTrigger value="rules">Rules</TabsTrigger>
             <TabsTrigger value="breaks">Rule Breaks</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
           </TabsList>
 
           <TabsContent value="rules">
@@ -262,9 +277,36 @@ export default function TeamDetailsPage({ params }: any) {
               )}
             </div>
           </TabsContent>
+
+          <TabsContent value="expenses">
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold">Team Expenses</h3>
+              {teamExpenses.length === 0 ? (
+                <p>No expenses have been recorded for this team.</p>
+              ) : (
+                <div className="space-y-4">
+                  {teamExpenses.map((expense) => (
+                    <Card key={expense.id}>
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <CardTitle className="text-lg">Team Expense</CardTitle>
+                          <Badge variant="outline" className="bg-[#255F38] text-white">
+                            €{expense.amount.toFixed(2)}
+                          </Badge>
+                        </div>
+                        <CardDescription>Date: {new Date(expense.date).toLocaleDateString()}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">{expense.description}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </main>
     </div>
   )
 }
-

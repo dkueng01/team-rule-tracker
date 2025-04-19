@@ -96,4 +96,3 @@ export const rules = [
     createdAt: "2023-03-10T09:20:00Z",
   },
 ]
-

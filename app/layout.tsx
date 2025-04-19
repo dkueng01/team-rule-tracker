@@ -10,7 +10,7 @@ export const metadata = {
     generator: 'v0.dev'
 }
 
-export default function RootLayout({ children }: any) {
+export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
@@ -21,7 +21,3 @@ export default function RootLayout({ children }: any) {
     </html>
   )
 }
-
-
-
-import './globals.css'

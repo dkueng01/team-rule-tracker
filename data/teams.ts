@@ -27,4 +27,3 @@ export const teams = [
     ruleCount: 5,
   },
 ]
-

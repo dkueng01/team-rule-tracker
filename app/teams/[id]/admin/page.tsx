@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, LogOut, Plus } from "lucide-react"
+import { ArrowLeft, LogOut, Plus, ShoppingBag } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { expenses } from "@/data/expenses"
 import { payments } from "@/data/payments"
 import { ruleBreaks } from "@/data/rule-breaks"
 import { rules } from "@/data/rules"
@@ -28,15 +29,17 @@ import { teams } from "@/data/teams"
 import { users } from "@/data/users"
 
 export default function AdminDashboardPage({ params }: any) {
-  const { id } = use<any>(params);
-  const [user, setUser] = useState<any>(null)
-  const [team, setTeam] = useState<any>(null)
-  const [teamRules, setTeamRules] = useState<any[]>([])
-  const [teamRuleBreaks, setTeamRuleBreaks] = useState<any[]>([])
-  const [teamPayments, setTeamPayments] = useState<any[]>([])
-  const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const { id } = use(params);
+  const [user, setUser] = useState(null)
+  const [team, setTeam] = useState(null)
+  const [teamRules, setTeamRules] = useState([])
+  const [teamRuleBreaks, setTeamRuleBreaks] = useState([])
+  const [teamPayments, setTeamPayments] = useState([])
+  const [teamExpenses, setTeamExpenses] = useState([])
+  const [teamMembers, setTeamMembers] = useState([])
   const [totalPoolAmount, setTotalPoolAmount] = useState(0)
   const [currentPoolAmount, setCurrentPoolAmount] = useState(0)
+  const [availablePoolAmount, setAvailablePoolAmount] = useState(0)
 
   // New rule form
   const [newRuleName, setNewRuleName] = useState("")
@@ -55,6 +58,11 @@ export default function AdminDashboardPage({ params }: any) {
   const [newPaymentAmount, setNewPaymentAmount] = useState("")
   const [newPaymentDescription, setNewPaymentDescription] = useState("")
   const [showNewPaymentDialog, setShowNewPaymentDialog] = useState(false)
+
+  // New expense form
+  const [newExpenseAmount, setNewExpenseAmount] = useState("")
+  const [newExpenseDescription, setNewExpenseDescription] = useState("")
+  const [showNewExpenseDialog, setShowNewExpenseDialog] = useState(false)
 
   const router = useRouter()
 
@@ -78,7 +86,7 @@ export default function AdminDashboardPage({ params }: any) {
     setTeam(teamData)
 
     // Check if user is admin
-    const currentUser: any = users.find((u) => u.username === userData.username)
+    const currentUser = users.find((u) => u.username === userData.username)
     const isAdmin = userData.role === "admin" || teamData.adminIds.includes(currentUser?.id)
 
     if (!isAdmin) {
@@ -98,6 +106,10 @@ export default function AdminDashboardPage({ params }: any) {
     const filteredPayments = payments.filter((payment) => payment.teamId === teamData.id)
     setTeamPayments(filteredPayments)
 
+    // Get team expenses
+    const filteredExpenses = expenses.filter((expense) => expense.teamId === teamData.id)
+    setTeamExpenses(filteredExpenses)
+
     // Get team members
     const teamMemberIds = teamData.memberIds
     const filteredMembers = users.filter((user) => teamMemberIds.includes(user.id))
@@ -110,9 +122,11 @@ export default function AdminDashboardPage({ params }: any) {
     }, 0)
 
     const totalPaymentAmount = filteredPayments.reduce((total, p) => total + p.amount, 0)
+    const totalExpenseAmount = filteredExpenses.reduce((total, e) => total + e.amount, 0)
 
     setTotalPoolAmount(totalBreakAmount)
     setCurrentPoolAmount(totalPaymentAmount)
+    setAvailablePoolAmount(totalPaymentAmount - totalExpenseAmount)
   }, [id, router])
 
   const handleLogout = () => {
@@ -200,13 +214,49 @@ export default function AdminDashboardPage({ params }: any) {
     setTeamPayments([...teamPayments, newPayment])
 
     // Update current pool amount
-    setCurrentPoolAmount(currentPoolAmount + Number.parseFloat(newPaymentAmount))
+    const paymentAmount = Number.parseFloat(newPaymentAmount)
+    setCurrentPoolAmount(currentPoolAmount + paymentAmount)
+    setAvailablePoolAmount(availablePoolAmount + paymentAmount)
 
     // Reset form
     setNewPaymentUserId("")
     setNewPaymentAmount("")
     setNewPaymentDescription("")
     setShowNewPaymentDialog(false)
+  }
+
+  const handleAddExpense = () => {
+    // Validate form
+    if (!newExpenseAmount || !newExpenseDescription) {
+      return
+    }
+
+    // Check if there's enough money in the pool
+    const expenseAmount = Number.parseFloat(newExpenseAmount)
+    if (expenseAmount > availablePoolAmount) {
+      alert("Not enough money in the pool for this expense!")
+      return
+    }
+
+    // In a real app, this would call an API
+    const newExpense = {
+      id: expenses.length + 1,
+      teamId: team.id,
+      amount: expenseAmount,
+      description: newExpenseDescription,
+      date: new Date().toISOString(),
+    }
+
+    // Update local state
+    setTeamExpenses([...teamExpenses, newExpense])
+
+    // Update available pool amount
+    setAvailablePoolAmount(availablePoolAmount - expenseAmount)
+
+    // Reset form
+    setNewExpenseAmount("")
+    setNewExpenseDescription("")
+    setShowNewExpenseDialog(false)
   }
 
   if (!user || !team) {
@@ -239,16 +289,14 @@ export default function AdminDashboardPage({ params }: any) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <Card>
             <CardHeader>
-              <CardTitle>Team Money Pool</CardTitle>
-              <CardDescription>Current vs expected amount</CardDescription>
+              <CardTitle>Expected Pool</CardTitle>
+              <CardDescription>Total amount from rule breaks</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-2">
-                €{currentPoolAmount.toFixed(2)} / €{totalPoolAmount.toFixed(2)}
-              </div>
+              <div className="text-2xl font-bold mb-2">€{totalPoolAmount.toFixed(2)}</div>
               <p className="text-muted-foreground">
                 {currentPoolAmount < totalPoolAmount
                   ? `€${(totalPoolAmount - currentPoolAmount).toFixed(2)} still to be collected`
@@ -259,26 +307,55 @@ export default function AdminDashboardPage({ params }: any) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Team Members</CardTitle>
-              <CardDescription>Total: {teamMembers.length} members</CardDescription>
+              <CardTitle>Collected Pool</CardTitle>
+              <CardDescription>Total amount collected</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {teamMembers.map((member) => (
-                  <Badge key={member.id} variant="outline" className="px-2 py-1">
-                    {member.name}
-                  </Badge>
-                ))}
-              </div>
+              <div className="text-2xl font-bold mb-2">€{currentPoolAmount.toFixed(2)}</div>
+              <p className="text-muted-foreground">
+                {((currentPoolAmount / totalPoolAmount) * 100).toFixed(0)}% of expected amount
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Available Pool</CardTitle>
+              <CardDescription>Amount after expenses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold mb-2">€{availablePoolAmount.toFixed(2)}</div>
+              <p className="text-muted-foreground">
+                {teamExpenses.length > 0
+                  ? `€${(currentPoolAmount - availablePoolAmount).toFixed(2)} spent on expenses`
+                  : "No expenses recorded yet"}
+              </p>
             </CardContent>
           </Card>
         </div>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Team Members</CardTitle>
+            <CardDescription>Total: {teamMembers.length} members</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {teamMembers.map((member) => (
+                <Badge key={member.id} variant="outline" className="px-2 py-1">
+                  {member.name}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="rules">
           <TabsList className="mb-4">
             <TabsTrigger value="rules">Rules</TabsTrigger>
             <TabsTrigger value="breaks">Rule Breaks</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
           </TabsList>
 
           <TabsContent value="rules">
@@ -553,9 +630,91 @@ export default function AdminDashboardPage({ params }: any) {
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="expenses">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold">Team Expenses</h3>
+              <Dialog open={showNewExpenseDialog} onOpenChange={setShowNewExpenseDialog}>
+                <DialogTrigger asChild>
+                  <Button className="bg-[#255F38] hover:bg-[#1d4a2c]">
+                    <ShoppingBag className="h-4 w-4 mr-2" /> Record Expense
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Record Team Expense</DialogTitle>
+                    <DialogDescription>Record when money from the team pool is spent on something.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="expense-amount">Amount (€)</Label>
+                      <Input
+                        id="expense-amount"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={newExpenseAmount}
+                        onChange={(e) => setNewExpenseAmount(e.target.value)}
+                        placeholder="15.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="expense-description">Description</Label>
+                      <Textarea
+                        id="expense-description"
+                        value={newExpenseDescription}
+                        onChange={(e) => setNewExpenseDescription(e.target.value)}
+                        placeholder="What was purchased for the team..."
+                        required
+                      />
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Available pool amount: €{availablePoolAmount.toFixed(2)}
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowNewExpenseDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleAddExpense}
+                      className="bg-[#255F38] hover:bg-[#1d4a2c]"
+                      disabled={
+                        !newExpenseAmount || !newExpenseDescription || Number(newExpenseAmount) > availablePoolAmount
+                      }
+                    >
+                      Record Expense
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {teamExpenses.length === 0 ? (
+              <p>No expenses have been recorded for this team.</p>
+            ) : (
+              <div className="space-y-4">
+                {teamExpenses.map((expense) => (
+                  <Card key={expense.id}>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg">Team Expense</CardTitle>
+                        <Badge variant="outline" className="bg-[#255F38] text-white">
+                          €{expense.amount.toFixed(2)}
+                        </Badge>
+                      </div>
+                      <CardDescription>Date: {new Date(expense.date).toLocaleDateString()}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">{expense.description}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </main>
     </div>
   )
 }
-

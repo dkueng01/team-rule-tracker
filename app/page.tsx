@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const router = useRouter()
 
-  const handleLogin = (e: any) => {
+  const handleLogin = (e) => {
     e.preventDefault()
 
     // Simple validation
@@ -83,4 +83,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
