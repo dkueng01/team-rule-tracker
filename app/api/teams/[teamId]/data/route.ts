@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { Pool } from "pg"
+import { Pool, QueryResult } from "pg"
 import { stackServerApp } from "@/stack";
 
 const pool = new Pool({
@@ -40,20 +40,40 @@ export async function GET(req: NextRequest, { params }: { params: { teamId: stri
     }
 
     // Then: fetch related data
-    const [rules, ruleBreaks, payments, expenses] = await Promise.all([
-      client.query(`SELECT * FROM rules WHERE team_id = $1`, [teamId]),
-      client.query(`SELECT * FROM rule_breaks WHERE team_id = $1`, [teamId]),
-      client.query(`SELECT * FROM payments WHERE team_id = $1`, [teamId]),
-      client.query(`SELECT * FROM expenses WHERE team_id = $1`, [teamId]),
-    ])
+    const promises = [
+        client.query(`SELECT * FROM rules WHERE team_id = $1`, [teamId]),
+        client.query(`SELECT * FROM rule_breaks WHERE team_id = $1`, [teamId]),
+        client.query(`SELECT * FROM payments WHERE team_id = $1`, [teamId]),
+        client.query(`SELECT * FROM expenses WHERE team_id = $1`, [teamId])
+    ]
+
+    if (isAdmin) {
+        promises.push(
+            client.query(`
+            SELECT tm.user_id AS id, u.name
+            FROM team_members tm
+            JOIN neon_auth.users_sync u ON tm.user_id = u.id
+            WHERE tm.team_id = $1
+            `, [teamId])
+        )
+    }
+
+    const results = await Promise.all(promises)
+
+    const rules: QueryResult = results[0]
+    const ruleBreaks: QueryResult = results[1]
+    const payments: QueryResult = results[2]
+    const expenses: QueryResult = results[3]
+    const teamMembers: QueryResult = results[4] ?? { rows: [] }
 
     return NextResponse.json({
-      team: team.rows[0],
-      isAdmin,
-      rules: rules.rows,
-      ruleBreaks: ruleBreaks.rows,
-      payments: payments.rows,
-      expenses: expenses.rows,
+        team: team.rows[0],
+        isAdmin,
+        rules: rules.rows,
+        ruleBreaks: ruleBreaks.rows,
+        payments: payments.rows,
+        expenses: expenses.rows,
+        teamMembers: teamMembers.rows
     })
   } finally {
     client.release()
