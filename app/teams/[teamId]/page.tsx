@@ -1,4 +1,5 @@
 "use client"
+import { useUser } from "@stackframe/stack";
 
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
@@ -16,14 +17,17 @@ import { rules } from "@/data/rules"
 import { teams } from "@/data/teams"
 import { users } from "@/data/users"
 
-export default function TeamDetailsPage({ params }: any) {
-  const { id } = use(params);
-  const [user, setUser] = useState(null)
-  const [team, setTeam] = useState(null)
-  const [teamRules, setTeamRules] = useState([])
-  const [teamRuleBreaks, setTeamRuleBreaks] = useState([])
-  const [teamPayments, setTeamPayments] = useState([])
-  const [teamExpenses, setTeamExpenses] = useState([])
+export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: string }> }) {
+  useUser({ or: 'redirect' });
+  const user = useUser();
+  const { teamId } = use(params);
+  const [loading, setLoading] = useState(true);
+  const [isMember, setIsMember] = useState<boolean | null>(null)
+  const [team, setTeam] = useState<any>(null)
+  const [teamRules, setTeamRules] = useState<any[]>([])
+  const [teamRuleBreaks, setTeamRuleBreaks] = useState<any[]>([])
+  const [teamPayments, setTeamPayments] = useState<any[]>([])
+  const [teamExpenses, setTeamExpenses] = useState<any[]>([])
   const [userDebt, setUserDebt] = useState(0)
   const [totalPoolAmount, setTotalPoolAmount] = useState(0)
   const [currentPoolAmount, setCurrentPoolAmount] = useState(0)
@@ -31,68 +35,70 @@ export default function TeamDetailsPage({ params }: any) {
   const router = useRouter()
 
   useEffect(() => {
-    // Check if user is logged in
-    const storedUser = localStorage.getItem("user")
-    if (!storedUser) {
-      router.push("/")
-      return
+    async function checkMembership() {
+      setLoading(true);
+      const res = await fetch(`/api/teams/${teamId}/is-member`)
+      const data = await res.json()
+      setIsMember(data.isMember)
+      setLoading(false);
     }
 
-    const userData = JSON.parse(storedUser)
-    setUser(userData)
+    checkMembership()
+  }, [teamId])
 
-    // Get team data
-    const teamData = teams.find((t) => t.id === Number.parseInt(id))
-    if (!teamData) {
-      router.push("/teams")
-      return
-    }
-    setTeam(teamData)
+  // useEffect(() => {
+  //   // Get team data
+  //   const teamData: any = teams.find((t) => t.id === Number.parseInt(id))
+  //   if (!teamData) {
+  //     router.push("/teams")
+  //     return
+  //   }
+  //   setTeam(teamData)
 
-    // Get team rules
-    const filteredRules = rules.filter((rule) => rule.teamId === teamData.id)
-    setTeamRules(filteredRules)
+  //   // Get team rules
+  //   const filteredRules: any = rules.filter((rule) => rule.teamId === teamData.id)
+  //   setTeamRules(filteredRules)
 
-    // Get team rule breaks
-    const filteredRuleBreaks = ruleBreaks.filter((rb) => rb.teamId === teamData.id)
-    setTeamRuleBreaks(filteredRuleBreaks)
+  //   // Get team rule breaks
+  //   const filteredRuleBreaks: any = ruleBreaks.filter((rb) => rb.teamId === teamData.id)
+  //   setTeamRuleBreaks(filteredRuleBreaks)
 
-    // Get team payments
-    const filteredPayments = payments.filter((payment) => payment.teamId === teamData.id)
-    setTeamPayments(filteredPayments)
+  //   // Get team payments
+  //   const filteredPayments: any = payments.filter((payment) => payment.teamId === teamData.id)
+  //   setTeamPayments(filteredPayments)
 
-    // Get team expenses
-    const filteredExpenses = expenses.filter((expense) => expense.teamId === teamData.id)
-    setTeamExpenses(filteredExpenses)
+  //   // Get team expenses
+  //   const filteredExpenses: any = expenses.filter((expense) => expense.teamId === teamData.id)
+  //   setTeamExpenses(filteredExpenses)
 
-    // Calculate user debt
-    const currentUser = users.find((u) => u.username === userData.username)
-    if (currentUser) {
-      const userBreaks = filteredRuleBreaks.filter((rb) => rb.userId === currentUser.id)
-      const userBreakTotal = userBreaks.reduce((total, rb) => {
-        const ruleAmount = filteredRules.find((r) => r.id === rb.ruleId)?.amount || 0
-        return total + ruleAmount
-      }, 0)
+  //   // Calculate user debt
+  //   const currentUser = users.find((u) => u.username === userData.username)
+  //   if (currentUser) {
+  //     const userBreaks = filteredRuleBreaks.filter((rb) => rb.userId === currentUser.id)
+  //     const userBreakTotal = userBreaks.reduce((total, rb) => {
+  //       const ruleAmount = filteredRules.find((r) => r.id === rb.ruleId)?.amount || 0
+  //       return total + ruleAmount
+  //     }, 0)
 
-      const userPayments = filteredPayments.filter((p) => p.userId === currentUser.id)
-      const userPaymentTotal = userPayments.reduce((total, p) => total + p.amount, 0)
+  //     const userPayments = filteredPayments.filter((p) => p.userId === currentUser.id)
+  //     const userPaymentTotal = userPayments.reduce((total, p) => total + p.amount, 0)
 
-      setUserDebt(userBreakTotal - userPaymentTotal)
-    }
+  //     setUserDebt(userBreakTotal - userPaymentTotal)
+  //   }
 
-    // Calculate pool amounts
-    const totalBreakAmount = filteredRuleBreaks.reduce((total, rb) => {
-      const ruleAmount = filteredRules.find((r) => r.id === rb.ruleId)?.amount || 0
-      return total + ruleAmount
-    }, 0)
+  //   // Calculate pool amounts
+  //   const totalBreakAmount = filteredRuleBreaks.reduce((total, rb) => {
+  //     const ruleAmount = filteredRules.find((r) => r.id === rb.ruleId)?.amount || 0
+  //     return total + ruleAmount
+  //   }, 0)
 
-    const totalPaymentAmount = filteredPayments.reduce((total, p) => total + p.amount, 0)
-    const totalExpenseAmount = filteredExpenses.reduce((total, e) => total + e.amount, 0)
+  //   const totalPaymentAmount = filteredPayments.reduce((total, p) => total + p.amount, 0)
+  //   const totalExpenseAmount = filteredExpenses.reduce((total, e) => total + e.amount, 0)
 
-    setTotalPoolAmount(totalBreakAmount)
-    setCurrentPoolAmount(totalPaymentAmount)
-    setAvailablePoolAmount(totalPaymentAmount - totalExpenseAmount)
-  }, [id, router])
+  //   setTotalPoolAmount(totalBreakAmount)
+  //   setCurrentPoolAmount(totalPaymentAmount)
+  //   setAvailablePoolAmount(totalPaymentAmount - totalExpenseAmount)
+  // }, [id, router])
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -104,14 +110,35 @@ export default function TeamDetailsPage({ params }: any) {
   }
 
   const handleAdminDashboard = () => {
-    router.push(`/teams/${id}/admin`);
+    router.push(`/teams/${teamId}/admin`);
   }
 
-  if (!user || !team) {
-    return null
+  // const isAdmin = user.role === "admin" || team.adminIds.includes(users.find((u) => u.username === user.username)?.id)
+  const isAdmin = false;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading...</p>
+      </div>
+    )
   }
 
-  const isAdmin = user.role === "admin" || team.adminIds.includes(users.find((u) => u.username === user.username)?.id)
+  if (!isMember) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>You are not a member of this team.</p>
+      </div>
+    )
+  }
+
+  if (!team) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Team not found.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
