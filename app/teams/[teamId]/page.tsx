@@ -48,59 +48,47 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
     checkMembership()
   }, [teamId])
 
-  // useEffect(() => {
-  //   // Get team data
-  //   const teamData: any = teams.find((t) => t.id === Number.parseInt(id))
-  //   if (!teamData) {
-  //     router.push("/teams")
-  //     return
-  //   }
-  //   setTeam(teamData)
+  useEffect(() => {
+    async function fetchTeamData() {
+      if (!isMember || loading) return
 
-  //   // Get team rules
-  //   const filteredRules: any = rules.filter((rule) => rule.teamId === teamData.id)
-  //   setTeamRules(filteredRules)
+      const res = await fetch(`/api/teams/${teamId}/data`)
+      const data = await res.json()
 
-  //   // Get team rule breaks
-  //   const filteredRuleBreaks: any = ruleBreaks.filter((rb) => rb.teamId === teamData.id)
-  //   setTeamRuleBreaks(filteredRuleBreaks)
+      setTeam(data.team)
+      setIsAdmin(data.isAdmin)
+      setTeamRules(data.rules)
+      setTeamRuleBreaks(data.ruleBreaks)
+      setTeamPayments(data.payments)
+      setTeamExpenses(data.expenses)
 
-  //   // Get team payments
-  //   const filteredPayments: any = payments.filter((payment) => payment.teamId === teamData.id)
-  //   setTeamPayments(filteredPayments)
+      // Calculate user debt
+      const userBreaks = data.ruleBreaks.filter((rb: any) => rb.user_id === user?.id)
+      const userBreakTotal = userBreaks.reduce((total: number, rb: any) => {
+        const ruleAmount = data.rules.find((r: any) => r.id === rb.rule_id)?.amount || 0
+        return total + ruleAmount
+      }, 0)
 
-  //   // Get team expenses
-  //   const filteredExpenses: any = expenses.filter((expense) => expense.teamId === teamData.id)
-  //   setTeamExpenses(filteredExpenses)
+      const userPayments = data.payments.filter((p: any) => p.user_id === user?.id)
+      const userPaymentTotal = userPayments.reduce((total: number, p: any) => total + p.amount, 0)
 
-  //   // Calculate user debt
-  //   const currentUser = users.find((u) => u.username === userData.username)
-  //   if (currentUser) {
-  //     const userBreaks = filteredRuleBreaks.filter((rb) => rb.userId === currentUser.id)
-  //     const userBreakTotal = userBreaks.reduce((total, rb) => {
-  //       const ruleAmount = filteredRules.find((r) => r.id === rb.ruleId)?.amount || 0
-  //       return total + ruleAmount
-  //     }, 0)
+      setUserDebt(userBreakTotal - userPaymentTotal)
 
-  //     const userPayments = filteredPayments.filter((p) => p.userId === currentUser.id)
-  //     const userPaymentTotal = userPayments.reduce((total, p) => total + p.amount, 0)
+      const totalBreakAmount = data.ruleBreaks.reduce((total: number, rb: any) => {
+        const ruleAmount = data.rules.find((r: any) => r.id === rb.rule_id)?.amount || 0
+        return total + ruleAmount
+      }, 0)
 
-  //     setUserDebt(userBreakTotal - userPaymentTotal)
-  //   }
+      const totalPaymentAmount = data.payments.reduce((total: number, p: any) => total + p.amount, 0)
+      const totalExpenseAmount = data.expenses.reduce((total: number, e: any) => total + e.amount, 0)
 
-  //   // Calculate pool amounts
-  //   const totalBreakAmount = filteredRuleBreaks.reduce((total, rb) => {
-  //     const ruleAmount = filteredRules.find((r) => r.id === rb.ruleId)?.amount || 0
-  //     return total + ruleAmount
-  //   }, 0)
+      setTotalPoolAmount(totalBreakAmount)
+      setCurrentPoolAmount(totalPaymentAmount)
+      setAvailablePoolAmount(totalPaymentAmount - totalExpenseAmount)
+    }
 
-  //   const totalPaymentAmount = filteredPayments.reduce((total, p) => total + p.amount, 0)
-  //   const totalExpenseAmount = filteredExpenses.reduce((total, e) => total + e.amount, 0)
-
-  //   setTotalPoolAmount(totalBreakAmount)
-  //   setCurrentPoolAmount(totalPaymentAmount)
-  //   setAvailablePoolAmount(totalPaymentAmount - totalExpenseAmount)
-  // }, [id, router])
+    fetchTeamData()
+  }, [isMember, loading, teamId])
 
   const handleLogout = () => {
     user?.signOut();
