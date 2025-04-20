@@ -23,6 +23,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
   const { teamId } = use(params);
   const [loading, setLoading] = useState(true);
   const [isMember, setIsMember] = useState<boolean | null>(null)
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
   const [team, setTeam] = useState<any>(null)
   const [teamRules, setTeamRules] = useState<any[]>([])
   const [teamRuleBreaks, setTeamRuleBreaks] = useState<any[]>([])
@@ -37,9 +38,10 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
   useEffect(() => {
     async function checkMembership() {
       setLoading(true);
-      const res = await fetch(`/api/teams/${teamId}/is-member`)
+      const res = await fetch(`/api/teams/${teamId}/membership`)
       const data = await res.json()
       setIsMember(data.isMember)
+      setIsAdmin(data.isAdmin)
       setLoading(false);
     }
 
@@ -101,7 +103,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
   // }, [id, router])
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
+    user?.signOut();
     router.push("/");
   }
 
@@ -112,9 +114,6 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
   const handleAdminDashboard = () => {
     router.push(`/teams/${teamId}/admin`);
   }
-
-  // const isAdmin = user.role === "admin" || team.adminIds.includes(users.find((u) => u.username === user.username)?.id)
-  const isAdmin = false;
 
   return (
     <div className="min-h-screen bg-background">
