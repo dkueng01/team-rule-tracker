@@ -1,4 +1,5 @@
 "use client"
+import { useUser } from "@stackframe/stack";
 
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
@@ -28,15 +29,16 @@ import { rules } from "@/data/rules"
 import { teams } from "@/data/teams"
 import { users } from "@/data/users"
 
-export default function AdminDashboardPage({ params }: any) {
-  const { id } = use(params);
-  const [user, setUser] = useState(null)
-  const [team, setTeam] = useState(null)
-  const [teamRules, setTeamRules] = useState([])
-  const [teamRuleBreaks, setTeamRuleBreaks] = useState([])
-  const [teamPayments, setTeamPayments] = useState([])
-  const [teamExpenses, setTeamExpenses] = useState([])
-  const [teamMembers, setTeamMembers] = useState([])
+export default function AdminDashboardPage({ params }: { params: Promise<{ teamId: string }> }) {
+  useUser({ or: 'redirect' });
+  const user = useUser();
+  const { teamId } = use(params);
+  const [team, setTeam] = useState<any>(null)
+  const [teamRules, setTeamRules] = useState<any[]>([])
+  const [teamRuleBreaks, setTeamRuleBreaks] = useState<any[]>([])
+  const [teamPayments, setTeamPayments] = useState<any[]>([])
+  const [teamExpenses, setTeamExpenses] = useState<any[]>([])
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [totalPoolAmount, setTotalPoolAmount] = useState(0)
   const [currentPoolAmount, setCurrentPoolAmount] = useState(0)
   const [availablePoolAmount, setAvailablePoolAmount] = useState(0)
@@ -66,76 +68,13 @@ export default function AdminDashboardPage({ params }: any) {
 
   const router = useRouter()
 
-  useEffect(() => {
-    // Check if user is logged in
-    const storedUser = localStorage.getItem("user")
-    if (!storedUser) {
-      router.push("/")
-      return
-    }
-
-    const userData = JSON.parse(storedUser)
-    setUser(userData)
-
-    // Get team data
-    const teamData = teams.find((t) => t.id === Number.parseInt(id))
-    if (!teamData) {
-      router.push("/teams")
-      return
-    }
-    setTeam(teamData)
-
-    // Check if user is admin
-    const currentUser = users.find((u) => u.username === userData.username)
-    const isAdmin = userData.role === "admin" || teamData.adminIds.includes(currentUser?.id)
-
-    if (!isAdmin) {
-      router.push(`/teams/${id}`)
-      return
-    }
-
-    // Get team rules
-    const filteredRules = rules.filter((rule) => rule.teamId === teamData.id)
-    setTeamRules(filteredRules)
-
-    // Get team rule breaks
-    const filteredRuleBreaks = ruleBreaks.filter((rb) => rb.teamId === teamData.id)
-    setTeamRuleBreaks(filteredRuleBreaks)
-
-    // Get team payments
-    const filteredPayments = payments.filter((payment) => payment.teamId === teamData.id)
-    setTeamPayments(filteredPayments)
-
-    // Get team expenses
-    const filteredExpenses = expenses.filter((expense) => expense.teamId === teamData.id)
-    setTeamExpenses(filteredExpenses)
-
-    // Get team members
-    const teamMemberIds = teamData.memberIds
-    const filteredMembers = users.filter((user) => teamMemberIds.includes(user.id))
-    setTeamMembers(filteredMembers)
-
-    // Calculate pool amounts
-    const totalBreakAmount = filteredRuleBreaks.reduce((total, rb) => {
-      const ruleAmount = filteredRules.find((r) => r.id === rb.ruleId)?.amount || 0
-      return total + ruleAmount
-    }, 0)
-
-    const totalPaymentAmount = filteredPayments.reduce((total, p) => total + p.amount, 0)
-    const totalExpenseAmount = filteredExpenses.reduce((total, e) => total + e.amount, 0)
-
-    setTotalPoolAmount(totalBreakAmount)
-    setCurrentPoolAmount(totalPaymentAmount)
-    setAvailablePoolAmount(totalPaymentAmount - totalExpenseAmount)
-  }, [id, router])
-
   const handleLogout = () => {
-    localStorage.removeItem("user")
+    user?.signOut();
     router.push("/")
   }
 
   const handleBackToTeam = () => {
-    router.push(`/teams/${id}`)
+    router.push(`/teams/${teamId}`)
   }
 
   const handleAddRule = () => {
@@ -147,7 +86,7 @@ export default function AdminDashboardPage({ params }: any) {
     // In a real app, this would call an API
     const newRule = {
       id: rules.length + 1,
-      teamId: team.id,
+      teamId: teamId,
       name: newRuleName,
       description: newRuleDescription,
       amount: Number.parseFloat(newRuleAmount),
@@ -173,7 +112,7 @@ export default function AdminDashboardPage({ params }: any) {
     // In a real app, this would call an API
     const newBreak = {
       id: ruleBreaks.length + 1,
-      teamId: team.id,
+      teamId: teamId,
       ruleId: Number.parseInt(newBreakRuleId),
       userId: Number.parseInt(newBreakUserId),
       description: newBreakDescription,
@@ -203,7 +142,7 @@ export default function AdminDashboardPage({ params }: any) {
     // In a real app, this would call an API
     const newPayment = {
       id: payments.length + 1,
-      teamId: team.id,
+      teamId: teamId,
       userId: Number.parseInt(newPaymentUserId),
       amount: Number.parseFloat(newPaymentAmount),
       description: newPaymentDescription,
@@ -241,7 +180,7 @@ export default function AdminDashboardPage({ params }: any) {
     // In a real app, this would call an API
     const newExpense = {
       id: expenses.length + 1,
-      teamId: team.id,
+      teamId: teamId,
       amount: expenseAmount,
       description: newExpenseDescription,
       date: new Date().toISOString(),
@@ -271,7 +210,7 @@ export default function AdminDashboardPage({ params }: any) {
             <ArrowLeft className="h-5 w-5" />
             <span className="sr-only">Back to team</span>
           </Button>
-          <h1 className="text-xl font-bold">{team.name} - Admin Dashboard</h1>
+          <h1 className="text-xl font-bold">{team?.name} - Admin Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={handleLogout} className="flex items-center gap-2">
