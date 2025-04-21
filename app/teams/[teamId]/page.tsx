@@ -231,8 +231,8 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
                   ) : (
                     <div className="space-y-4">
                       {teamRuleBreaks.map((ruleBreak) => {
-                        const rule = teamRules.find((r) => r.id === ruleBreak.ruleId)
-                        const userWhoBreak = teamMembers.find((u) => u.id === ruleBreak.userId)
+                        const rule = teamRules.find((r) => r.id === ruleBreak.rule_id)
+                        const userWhoBreak = teamMembers.find((u) => u.id === ruleBreak.user_id)
                         return (
                           <Card key={ruleBreak.id}>
                             <CardHeader className="pb-2">
@@ -265,7 +265,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
                   ) : (
                     <div className="space-y-4">
                       {teamPayments.map((payment) => {
-                        const userWhoPaid = teamMembers.find((u) => u.id === payment.userId)
+                        const userWhoPaid = teamMembers.find((u) => u.id === payment.user_id)
                         return (
                           <Card key={payment.id}>
                             <CardHeader className="pb-2">

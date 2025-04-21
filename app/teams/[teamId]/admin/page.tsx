@@ -69,7 +69,8 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
   // New expense form
   const [newExpenseAmount, setNewExpenseAmount] = useState("")
   const [newExpenseDescription, setNewExpenseDescription] = useState("")
-  const [showNewExpenseDialog, setShowNewExpenseDialog] = useState(false)
+  const [showExpenseDialog, setShowExpenseDialog] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<any | null>(null)
 
   const router = useRouter()
 
@@ -140,6 +141,13 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
       setNewPaymentDescription(editingPayment.description || "")
     }
   }, [editingPayment])
+
+  useEffect(() => {
+    if (editingExpense) {
+      setNewExpenseAmount(editingExpense.amount.toString())
+      setNewExpenseDescription(editingExpense.description)
+    }
+  }, [editingExpense])
 
   const handleLogout = () => {
     user?.signOut();
@@ -347,38 +355,74 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
     setNewPaymentDescription("")
   }
 
-  const handleAddExpense = () => {
-    // Validate form
-    if (!newExpenseAmount || !newExpenseDescription) {
-      return
-    }
+  const handleSaveExpense = async () => {
+    if (!newExpenseAmount || !newExpenseDescription) return
 
-    // Check if there's enough money in the pool
-    const expenseAmount = Number.parseFloat(newExpenseAmount)
-    if (expenseAmount > availablePoolAmount) {
-      alert("Not enough money in the pool for this expense!")
-      return
-    }
-
-    // In a real app, this would call an API
-    const newExpense = {
-      id: expenses.length + 1,
-      teamId: teamId,
-      amount: expenseAmount,
+    const payload = {
+      amount: parseFloat(newExpenseAmount),
       description: newExpenseDescription,
-      date: new Date().toISOString(),
     }
 
-    // Update local state
-    setTeamExpenses([...teamExpenses, newExpense])
+    const url = editingExpense
+      ? `/api/teams/${teamId}/expenses/${editingExpense.id}`
+      : `/api/teams/${teamId}/expenses`
 
-    // Update available pool amount
-    setAvailablePoolAmount(availablePoolAmount - expenseAmount)
+    const method = editingExpense ? "PUT" : "POST"
 
-    // Reset form
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      console.error("Failed to save expense")
+      return
+    }
+
+    const result = await res.json()
+
+    setTeamExpenses((prev) =>
+      editingExpense
+        ? prev.map((e) => (e.id === result.id ? result : e))
+        : [...prev, result]
+    )
+
+    const amountDiff = editingExpense
+      ? result.amount - editingExpense.amount
+      : result.amount
+
+    setAvailablePoolAmount(availablePoolAmount - amountDiff)
+
+    setShowExpenseDialog(false)
+    setEditingExpense(null)
+    resetExpenseForm()
+  }
+
+  const handleDeleteExpense = async (expenseId: number) => {
+    const confirmDelete = confirm("Delete this expense?")
+    if (!confirmDelete) return
+
+    const res = await fetch(`/api/teams/${teamId}/expenses/${expenseId}`, {
+      method: "DELETE",
+    })
+
+    if (!res.ok) {
+      console.error("Failed to delete expense")
+      return
+    }
+
+    const deleted = teamExpenses.find((e) => e.id === expenseId)
+    if (deleted) {
+      setAvailablePoolAmount(availablePoolAmount + deleted.amount)
+    }
+
+    setTeamExpenses((prev) => prev.filter((e) => e.id !== expenseId))
+  }
+
+  const resetExpenseForm = () => {
     setNewExpenseAmount("")
     setNewExpenseDescription("")
-    setShowNewExpenseDialog(false)
   }
 
   return (
@@ -842,7 +886,7 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                 ) : (
                   <div className="space-y-4">
                     {teamPayments.map((payment) => {
-                      const userWhoPaid = teamMembers.find((u) => u.id === payment.userId)
+                      const userWhoPaid = teamMembers.find((u) => u.id === payment.user_id)
                       return (
                         <Card key={payment.id}>
                           <CardHeader className="pb-2">
@@ -888,22 +932,38 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
               <TabsContent value="expenses">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-semibold">Team Expenses</h3>
-                  <Dialog open={showNewExpenseDialog} onOpenChange={setShowNewExpenseDialog}>
+                  <Dialog
+                    open={showExpenseDialog}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setEditingExpense(null)
+                        resetExpenseForm()
+                      }
+                      setShowExpenseDialog(open)
+                    }}
+                  >
                     <DialogTrigger asChild>
-                      <Button className="bg-[#255F38] hover:bg-[#1d4a2c]">
+                      <Button
+                        onClick={() => {
+                          setEditingExpense(null)
+                          setShowExpenseDialog(true)
+                        }}
+                        className="bg-[#255F38] hover:bg-[#1d4a2c]"
+                      >
                         <ShoppingBag className="h-4 w-4 mr-2" /> Record Expense
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Record Team Expense</DialogTitle>
-                        <DialogDescription>Record when money from the team pool is spent on something.</DialogDescription>
+                        <DialogTitle>{editingExpense ? "Edit Expense" : "Record Expense"}</DialogTitle>
+                        <DialogDescription>
+                          {editingExpense ? "Update the team expense details." : "Add a new team expense."}
+                        </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                          <Label htmlFor="expense-amount">Amount (€)</Label>
+                          <Label>Amount (€)</Label>
                           <Input
-                            id="expense-amount"
                             type="number"
                             min="0.01"
                             step="0.01"
@@ -913,31 +973,27 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="expense-description">Description</Label>
+                          <Label>Description</Label>
                           <Textarea
-                            id="expense-description"
                             value={newExpenseDescription}
                             onChange={(e) => setNewExpenseDescription(e.target.value)}
-                            placeholder="What was purchased for the team..."
-                            required
+                            placeholder="What was purchased..."
                           />
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          Available pool amount: €{availablePoolAmount}
-                        </div>
+                        <p className="text-sm text-muted-foreground">Available pool: €{availablePoolAmount}</p>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowNewExpenseDialog(false)}>
+                        <Button variant="outline" onClick={() => { setShowExpenseDialog(false); setEditingExpense(null); resetExpenseForm(); }}>
                           Cancel
                         </Button>
                         <Button
-                          onClick={handleAddExpense}
+                          onClick={handleSaveExpense}
                           className="bg-[#255F38] hover:bg-[#1d4a2c]"
                           disabled={
-                            !newExpenseAmount || !newExpenseDescription || Number(newExpenseAmount) > availablePoolAmount
+                            !newExpenseAmount || !newExpenseDescription || parseFloat(newExpenseAmount) > availablePoolAmount
                           }
                         >
-                          Record Expense
+                          {editingExpense ? "Update Expense" : "Record Expense"}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -953,9 +1009,28 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                         <CardHeader className="pb-2">
                           <div className="flex justify-between items-start">
                             <CardTitle className="text-lg">Team Expense</CardTitle>
-                            <Badge variant="outline" className="bg-[#255F38] text-white">
-                              €{expense.amount}
-                            </Badge>
+                            <div className="flex gap-2 items-center">
+                              <Badge variant="outline" className="bg-[#255F38] text-white">
+                                €{expense.amount}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className="cursor-pointer text-white"
+                                onClick={() => {
+                                  setEditingExpense(expense)
+                                  setShowExpenseDialog(true)
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className="cursor-pointer text-red-500"
+                                onClick={() => handleDeleteExpense(expense.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Badge>
+                            </div>
                           </div>
                           <CardDescription>Date: {new Date(expense.date).toLocaleDateString()}</CardDescription>
                         </CardHeader>
