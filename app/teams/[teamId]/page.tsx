@@ -10,11 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { expenses } from "@/data/expenses"
-import { payments } from "@/data/payments"
-import { ruleBreaks } from "@/data/rule-breaks"
-import { rules } from "@/data/rules"
-import { teams } from "@/data/teams"
 import { users } from "@/data/users"
 
 export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: string }> }) {
@@ -168,7 +163,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
                   <CardDescription>Amount you owe to the team</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">€{userDebt.toFixed(2)}</div>
+                  <div className="text-3xl font-bold">€{userDebt}</div>
                 </CardContent>
               </Card>
 
@@ -179,13 +174,13 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
                 </CardHeader>
                 <CardContent>
                   <div className="flex justify-between mb-2">
-                    <span>Current: €{availablePoolAmount.toFixed(2)}</span>
-                    <span>Expected: €{totalPoolAmount.toFixed(2)}</span>
+                    <span>Current: €{availablePoolAmount}</span>
+                    <span>Expected: €{totalPoolAmount}</span>
                   </div>
                   <Progress value={(currentPoolAmount / totalPoolAmount) * 100} className="h-2" />
                   {teamExpenses.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-2">
-                      €{(currentPoolAmount - availablePoolAmount).toFixed(2)} spent on team expenses
+                      €{(currentPoolAmount - availablePoolAmount)} spent on team expenses
                     </p>
                   )}
                 </CardContent>
@@ -213,7 +208,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
                             <div className="flex justify-between items-start">
                               <CardTitle className="text-lg">{rule.name}</CardTitle>
                               <Badge variant="outline" className="bg-[#255F38] text-white">
-                                €{rule.amount.toFixed(2)}
+                                €{rule.amount}
                               </Badge>
                             </div>
                           </CardHeader>
@@ -243,7 +238,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
                               <div className="flex justify-between items-start">
                                 <CardTitle className="text-lg">{rule?.name}</CardTitle>
                                 <Badge variant="outline" className="bg-[#255F38] text-white">
-                                  €{rule?.amount.toFixed(2)}
+                                  €{rule?.amount}
                                 </Badge>
                               </div>
                               <CardDescription>
@@ -276,7 +271,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
                               <div className="flex justify-between items-start">
                                 <CardTitle className="text-lg">Payment</CardTitle>
                                 <Badge variant="outline" className="bg-[#255F38] text-white">
-                                  €{payment.amount.toFixed(2)}
+                                  €{payment.amount}
                                 </Badge>
                               </div>
                               <CardDescription>
@@ -307,7 +302,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
                             <div className="flex justify-between items-start">
                               <CardTitle className="text-lg">Team Expense</CardTitle>
                               <Badge variant="outline" className="bg-[#255F38] text-white">
-                                €{expense.amount.toFixed(2)}
+                                €{expense.amount}
                               </Badge>
                             </div>
                             <CardDescription>Date: {new Date(expense.date).toLocaleDateString()}</CardDescription>

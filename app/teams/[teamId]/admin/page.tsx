@@ -25,9 +25,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { expenses } from "@/data/expenses"
 import { payments } from "@/data/payments"
 import { ruleBreaks } from "@/data/rule-breaks"
-import { rules } from "@/data/rules"
-import { teams } from "@/data/teams"
-import { users } from "@/data/users"
 
 export default function AdminDashboardPage({ params }: { params: Promise<{ teamId: string }> }) {
   useUser({ or: 'redirect' });
@@ -517,7 +514,7 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                     {teamRules.map((rule) => (
                       <Card key={rule.id}>
                         <CardHeader className="pb-2">
-                          <div className="flex justify-between items-center">
+                          <div className="flex justify-between items-start">
                             <CardTitle className="text-lg">{rule.name}</CardTitle>
                             <div className="flex gap-2">
                               <Badge variant="outline" className="bg-[#255F38] text-white">
