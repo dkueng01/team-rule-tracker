@@ -8,6 +8,7 @@ import { LogOut, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Team } from "@/types/team";
+import Link from "next/link";
 
 export default function TeamsPage() {
   useUser({ or: 'redirect' });
@@ -58,7 +59,7 @@ export default function TeamsPage() {
         <div className="flex items-center gap-2 mb-6">
           <User className="h-5 w-5" />
           <h2 className="text-lg font-medium">
-            Welcome, {user.primaryEmail}!
+            Welcome, <Link href="/handler/account-settings" className="text-foreground font-medium underline hover:text-primary">{user.primaryEmail}</Link>!
           </h2>
         </div>
 
