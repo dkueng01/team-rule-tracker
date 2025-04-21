@@ -17,15 +17,18 @@ export async function GET() {
 
     try {
         const result = await client.query(`
-        SELECT t.id, t.name, t.description,
-            COUNT(DISTINCT tm.user_id) AS "memberCount",
-            COUNT(DISTINCT r.id) AS "ruleCount"
-        FROM teams t
-        JOIN team_members tm ON t.id = tm.team_id
-        LEFT JOIN rules r ON t.id = r.team_id
-        WHERE tm.user_id = $1
-        GROUP BY t.id
-        `, [user.id])
+            SELECT
+              t.id,
+              t.name,
+              t.description,
+              (SELECT COUNT(*) FROM team_members tm2 WHERE tm2.team_id = t.id) AS "memberCount",
+              COUNT(DISTINCT r.id) AS "ruleCount"
+            FROM teams t
+            JOIN team_members tm ON t.id = tm.team_id
+            LEFT JOIN rules r ON t.id = r.team_id
+            WHERE tm.user_id = $1
+            GROUP BY t.id
+          `, [user.id])
 
         return NextResponse.json(result.rows)
     } finally {

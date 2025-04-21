@@ -19,13 +19,13 @@ export default function TeamsPage() {
   useEffect(() => {
     async function fetchUserTeams() {
       setLoading(true);
-      const res = await fetch("/api/my-teams")
-      const data = await res.json()
-      setUserTeams(data)
+      const res = await fetch("/api/my-teams");
+      const data = await res.json();
+      setUserTeams(data);
       setLoading(false);
     }
 
-    fetchUserTeams()
+    fetchUserTeams();
   }, [])
 
   const handleLogout = () => {
