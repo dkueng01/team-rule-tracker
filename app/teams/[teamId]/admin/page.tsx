@@ -63,7 +63,8 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
   const [newPaymentUserId, setNewPaymentUserId] = useState("")
   const [newPaymentAmount, setNewPaymentAmount] = useState("")
   const [newPaymentDescription, setNewPaymentDescription] = useState("")
-  const [showNewPaymentDialog, setShowNewPaymentDialog] = useState(false)
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<any | null>(null)
 
   // New expense form
   const [newExpenseAmount, setNewExpenseAmount] = useState("")
@@ -131,6 +132,14 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
       setNewBreakDescription(editingRuleBreak.description || "")
     }
   }, [editingRuleBreak])
+
+  useEffect(() => {
+    if (editingPayment) {
+      setNewPaymentUserId(editingPayment.user_id.toString())
+      setNewPaymentAmount(editingPayment.amount.toString())
+      setNewPaymentDescription(editingPayment.description || "")
+    }
+  }, [editingPayment])
 
   const handleLogout = () => {
     user?.signOut();
@@ -264,35 +273,78 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
     setNewBreakDescription("")
   }
 
-  const handleAddPayment = () => {
-    // Validate form
-    if (!newPaymentUserId || !newPaymentAmount) {
+  const handleSavePayment = async () => {
+    if (!newPaymentUserId || !newPaymentAmount) return
+
+    const payload = {
+      userId: newPaymentUserId,
+      amount: parseFloat(newPaymentAmount),
+      description: newPaymentDescription,
+    }
+
+    const url = editingPayment
+      ? `/api/teams/${teamId}/payments/${editingPayment.id}`
+      : `/api/teams/${teamId}/payments`
+
+    const method = editingPayment ? "PUT" : "POST"
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      console.error("Failed to save payment")
       return
     }
 
-    // In a real app, this would call an API
-    const newPayment = {
-      id: payments.length + 1,
-      teamId: teamId,
-      userId: Number.parseInt(newPaymentUserId),
-      amount: Number.parseFloat(newPaymentAmount),
-      description: newPaymentDescription,
-      date: new Date().toISOString(),
+    const savedPayment = await res.json()
+
+    setTeamPayments((prev) =>
+      editingPayment
+        ? prev.map((p) => (p.id === savedPayment.id ? savedPayment : p))
+        : [...prev, savedPayment]
+    )
+
+    const amountDiff = editingPayment
+      ? savedPayment.amount - editingPayment.amount
+      : savedPayment.amount
+
+    setCurrentPoolAmount(currentPoolAmount + amountDiff)
+    setAvailablePoolAmount(availablePoolAmount + amountDiff)
+
+    setEditingPayment(null)
+    setShowPaymentDialog(false)
+    resetPaymentForm()
+  }
+
+  const handleDeletePayment = async (paymentId: number) => {
+    const confirmDelete = confirm("Delete this payment?")
+    if (!confirmDelete) return
+
+    const res = await fetch(`/api/teams/${teamId}/payments/${paymentId}`, {
+      method: "DELETE",
+    })
+
+    if (!res.ok) {
+      console.error("Failed to delete payment")
+      return
     }
 
-    // Update local state
-    setTeamPayments([...teamPayments, newPayment])
+    const deletedPayment = teamPayments.find(p => p.id === paymentId)
+    if (deletedPayment) {
+      setCurrentPoolAmount(currentPoolAmount - deletedPayment.amount)
+      setAvailablePoolAmount(availablePoolAmount - deletedPayment.amount)
+    }
 
-    // Update current pool amount
-    const paymentAmount = Number.parseFloat(newPaymentAmount)
-    setCurrentPoolAmount(currentPoolAmount + paymentAmount)
-    setAvailablePoolAmount(availablePoolAmount + paymentAmount)
+    setTeamPayments((prev) => prev.filter((p) => p.id !== paymentId))
+  }
 
-    // Reset form
+  const resetPaymentForm = () => {
     setNewPaymentUserId("")
     setNewPaymentAmount("")
     setNewPaymentDescription("")
-    setShowNewPaymentDialog(false)
   }
 
   const handleAddExpense = () => {
@@ -703,20 +755,40 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
               <TabsContent value="payments">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-semibold">Payments</h3>
-                  <Dialog open={showNewPaymentDialog} onOpenChange={setShowNewPaymentDialog}>
+                  <Dialog
+                    open={showPaymentDialog}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setEditingPayment(null)
+                        resetPaymentForm()
+                      }
+                      setShowPaymentDialog(open)
+                    }}
+                  >
                     <DialogTrigger asChild>
-                      <Button className="bg-[#255F38] hover:bg-[#1d4a2c]">
+                      <Button
+                        onClick={() => {
+                          setEditingPayment(null)
+                          setShowPaymentDialog(true)
+                        }}
+                        className="bg-[#255F38] hover:bg-[#1d4a2c]"
+                      >
                         <Plus className="h-4 w-4 mr-2" /> Record Payment
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Record Payment</DialogTitle>
-                        <DialogDescription>Record when a team member pays their debt.</DialogDescription>
+                        <DialogTitle>{editingPayment ? "Edit Payment" : "Record Payment"}</DialogTitle>
+                        <DialogDescription>
+                          {editingPayment
+                            ? "Update this team member’s payment."
+                            : "Record a new payment for a rule break."}
+                        </DialogDescription>
                       </DialogHeader>
+
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                          <Label htmlFor="payment-user">Team Member</Label>
+                          <Label>Team Member</Label>
                           <Select value={newPaymentUserId} onValueChange={setNewPaymentUserId}>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a member" />
@@ -730,34 +802,35 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                             </SelectContent>
                           </Select>
                         </div>
+
                         <div className="space-y-2">
-                          <Label htmlFor="payment-amount">Amount (€)</Label>
+                          <Label>Amount (€)</Label>
                           <Input
-                            id="payment-amount"
                             type="number"
                             min="0.01"
                             step="0.01"
                             value={newPaymentAmount}
                             onChange={(e) => setNewPaymentAmount(e.target.value)}
-                            placeholder="5.00"
+                            placeholder="e.g. 10.00"
                           />
                         </div>
+
                         <div className="space-y-2">
-                          <Label htmlFor="payment-description">Description (Optional)</Label>
+                          <Label>Description (Optional)</Label>
                           <Textarea
-                            id="payment-description"
                             value={newPaymentDescription}
                             onChange={(e) => setNewPaymentDescription(e.target.value)}
-                            placeholder="Add details about the payment..."
+                            placeholder="Add a note about this payment..."
                           />
                         </div>
                       </div>
+
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowNewPaymentDialog(false)}>
+                        <Button variant="outline" onClick={() => { setShowPaymentDialog(false); setEditingPayment(null); resetPaymentForm(); }}>
                           Cancel
                         </Button>
-                        <Button onClick={handleAddPayment} className="bg-[#255F38] hover:bg-[#1d4a2c]">
-                          Record Payment
+                        <Button onClick={handleSavePayment} className="bg-[#255F38] hover:bg-[#1d4a2c]">
+                          {editingPayment ? "Update Payment" : "Record Payment"}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -775,9 +848,28 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                           <CardHeader className="pb-2">
                             <div className="flex justify-between items-start">
                               <CardTitle className="text-lg">Payment</CardTitle>
-                              <Badge variant="outline" className="bg-[#255F38] text-white">
-                                €{payment.amount}
-                              </Badge>
+                              <div className="flex gap-2">
+                                <Badge variant="outline" className="bg-[#255F38] text-white">
+                                  €{payment.amount}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="cursor-pointer text-white"
+                                  onClick={() => {
+                                    setEditingPayment(payment)
+                                    setShowPaymentDialog(true)
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="cursor-pointer text-red-500"
+                                  onClick={() => handleDeletePayment(payment.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Badge>
+                              </div>
                             </div>
                             <CardDescription>
                               Paid by: {userWhoPaid?.name} on {new Date(payment.date).toLocaleDateString()}
