@@ -55,7 +55,9 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
   const [newBreakRuleId, setNewBreakRuleId] = useState("")
   const [newBreakUserId, setNewBreakUserId] = useState("")
   const [newBreakDescription, setNewBreakDescription] = useState("")
-  const [showNewBreakDialog, setShowNewBreakDialog] = useState(false)
+  const [showRuleBreakDialog, setShowRuleBreakDialog] = useState(false)
+  const [editingRuleBreak, setEditingRuleBreak] = useState<any | null>(null)
+
 
   // New payment form
   const [newPaymentUserId, setNewPaymentUserId] = useState("")
@@ -121,6 +123,14 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
       setNewRuleAmount(editingRule.amount.toString())
     }
   }, [editingRule])
+
+  useEffect(() => {
+    if (editingRuleBreak) {
+      setNewBreakRuleId(editingRuleBreak.rule_id.toString())
+      setNewBreakUserId(editingRuleBreak.user_id)
+      setNewBreakDescription(editingRuleBreak.description || "")
+    }
+  }, [editingRuleBreak])
 
   const handleLogout = () => {
     user?.signOut();
@@ -188,63 +198,70 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
     setTeamRules((prev) => prev.filter((rule) => rule.id !== ruleId))
   }
 
-  const handleEditRule = async (updatedRule: {
-    id: number;
-    name: string;
-    description: string;
-    amount: number;
-  }) => {
-    const res = await fetch(`/api/teams/${teamId}/rules/${updatedRule.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedRule),
-    })
-
-    if (!res.ok) {
-      console.error("Failed to update rule")
-      return
-    }
-
-    const result = await res.json()
-    setTeamRules((prev) =>
-      prev.map((r) => (r.id === result.id ? result : r))
-    )
-  }
-
   const resetRuleForm = () => {
     setNewRuleName("")
     setNewRuleDescription("")
     setNewRuleAmount("")
   }
 
-  const handleAddRuleBreak = () => {
-    // Validate form
-    if (!newBreakRuleId || !newBreakUserId) {
+  const handleSaveRuleBreak = async () => {
+    if (!newBreakRuleId || !newBreakUserId) return
+
+    const payload = {
+      ruleId: parseInt(newBreakRuleId),
+      userId: newBreakUserId,
+      description: newBreakDescription,
+    }
+
+    const method = editingRuleBreak ? "PUT" : "POST"
+    const url = editingRuleBreak
+      ? `/api/teams/${teamId}/rule-breaks/${editingRuleBreak.id}`
+      : `/api/teams/${teamId}/rule-breaks`
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      console.error("Failed to save rule break")
       return
     }
 
-    // In a real app, this would call an API
-    const newBreak = {
-      id: ruleBreaks.length + 1,
-      teamId: teamId,
-      ruleId: Number.parseInt(newBreakRuleId),
-      userId: Number.parseInt(newBreakUserId),
-      description: newBreakDescription,
-      date: new Date().toISOString(),
+    const breakData = await res.json()
+
+    setTeamRuleBreaks((prev) =>
+      editingRuleBreak
+        ? prev.map((b) => (b.id === breakData.id ? breakData : b))
+        : [...prev, breakData]
+    )
+
+    setShowRuleBreakDialog(false)
+    resetRuleBreakForm()
+    setEditingRuleBreak(null)
+  }
+
+  const handleDeleteRuleBreak = async (breakId: number) => {
+    const confirmDelete = confirm("Delete this rule break?")
+    if (!confirmDelete) return
+
+    const res = await fetch(`/api/teams/${teamId}/rule-breaks/${breakId}`, {
+      method: "DELETE",
+    })
+
+    if (!res.ok) {
+      console.error("Failed to delete rule break")
+      return
     }
 
-    // Update local state
-    setTeamRuleBreaks([...teamRuleBreaks, newBreak])
+    setTeamRuleBreaks((prev) => prev.filter((rb) => rb.id !== breakId))
+  }
 
-    // Update total pool amount
-    const ruleAmount = teamRules.find((r) => r.id === Number.parseInt(newBreakRuleId))?.amount || 0
-    setTotalPoolAmount(totalPoolAmount + ruleAmount)
-
-    // Reset form
+  const resetRuleBreakForm = () => {
     setNewBreakRuleId("")
     setNewBreakUserId("")
     setNewBreakDescription("")
-    setShowNewBreakDialog(false)
   }
 
   const handleAddPayment = () => {
@@ -379,10 +396,10 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                   <CardDescription>Total amount from rule breaks</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold mb-2">€{totalPoolAmount.toFixed(2)}</div>
+                  <div className="text-2xl font-bold mb-2">€{totalPoolAmount}</div>
                   <p className="text-muted-foreground">
                     {currentPoolAmount < totalPoolAmount
-                      ? `€${(totalPoolAmount - currentPoolAmount).toFixed(2)} still to be collected`
+                      ? `€${(totalPoolAmount - currentPoolAmount)} still to be collected`
                       : "All debts have been paid"}
                   </p>
                 </CardContent>
@@ -394,7 +411,7 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                   <CardDescription>Total amount collected</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold mb-2">€{currentPoolAmount.toFixed(2)}</div>
+                  <div className="text-2xl font-bold mb-2">€{currentPoolAmount}</div>
                   <p className="text-muted-foreground">
                     {((currentPoolAmount / totalPoolAmount) * 100).toFixed(0)}% of expected amount
                   </p>
@@ -407,10 +424,10 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                   <CardDescription>Amount after expenses</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold mb-2">€{availablePoolAmount.toFixed(2)}</div>
+                  <div className="text-2xl font-bold mb-2">€{availablePoolAmount}</div>
                   <p className="text-muted-foreground">
                     {teamExpenses.length > 0
-                      ? `€${(currentPoolAmount - availablePoolAmount).toFixed(2)} spent on expenses`
+                      ? `€${(currentPoolAmount - availablePoolAmount)} spent on expenses`
                       : "No expenses recorded yet"}
                   </p>
                 </CardContent>
@@ -552,16 +569,33 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
               <TabsContent value="breaks">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-semibold">Rule Breaks</h3>
-                  <Dialog open={showNewBreakDialog} onOpenChange={setShowNewBreakDialog}>
+                  <Dialog
+                    open={showRuleBreakDialog}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        resetRuleBreakForm()
+                        setEditingRuleBreak(null)
+                      }
+                      setShowRuleBreakDialog(open)
+                    }}
+                  >
                     <DialogTrigger asChild>
-                      <Button className="bg-[#255F38] hover:bg-[#1d4a2c]">
+                      <Button
+                        onClick={() => {
+                          setEditingRuleBreak(null)
+                          setShowRuleBreakDialog(true)
+                        }}
+                        className="bg-[#255F38] hover:bg-[#1d4a2c]"
+                      >
                         <Plus className="h-4 w-4 mr-2" /> Record Rule Break
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Record Rule Break</DialogTitle>
-                        <DialogDescription>Record when a team member breaks a rule.</DialogDescription>
+                        <DialogTitle>{editingRuleBreak ? "Edit Rule Break" : "Record Rule Break"}</DialogTitle>
+                        <DialogDescription>
+                          {editingRuleBreak ? "Update the details of this rule break." : "Record a new rule break for this team member."}
+                        </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -605,11 +639,11 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowNewBreakDialog(false)}>
+                        <Button variant="outline" onClick={() => {resetRuleBreakForm(); setEditingRuleBreak(null); setShowRuleBreakDialog(false)}}>
                           Cancel
                         </Button>
-                        <Button onClick={handleAddRuleBreak} className="bg-[#255F38] hover:bg-[#1d4a2c]">
-                          Record Break
+                        <Button onClick={handleSaveRuleBreak} className="bg-[#255F38] hover:bg-[#1d4a2c]">
+                          {editingRuleBreak ? "Update Break" : "Record Break"}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -621,16 +655,36 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                 ) : (
                   <div className="space-y-4">
                     {teamRuleBreaks.map((ruleBreak) => {
-                      const rule = teamRules.find((r) => r.id === ruleBreak.ruleId)
-                      const userWhoBreak = teamMembers.find((u) => u.id === ruleBreak.userId)
+                      const rule = teamRules.find((r) => r.id === ruleBreak.rule_id)
+                      const userWhoBreak = teamMembers.find((u) => u.id === ruleBreak.user_id)
+
                       return (
                         <Card key={ruleBreak.id}>
                           <CardHeader className="pb-2">
                             <div className="flex justify-between items-start">
                               <CardTitle className="text-lg">{rule?.name}</CardTitle>
-                              <Badge variant="outline" className="bg-[#255F38] text-white">
-                                €{rule?.amount.toFixed(2)}
-                              </Badge>
+                              <div className="flex gap-2">
+                                <Badge variant="outline" className="bg-[#255F38] text-white">
+                                  €{rule?.amount}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="cursor-pointer text-white"
+                                  onClick={() => {
+                                    setEditingRuleBreak(ruleBreak)
+                                    setShowRuleBreakDialog(true)
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="cursor-pointer text-red-500"
+                                  onClick={() => handleDeleteRuleBreak(ruleBreak.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Badge>
+                              </div>
                             </div>
                             <CardDescription>
                               Broken by: {userWhoBreak?.name} on {new Date(ruleBreak.date).toLocaleDateString()}
@@ -722,7 +776,7 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                             <div className="flex justify-between items-start">
                               <CardTitle className="text-lg">Payment</CardTitle>
                               <Badge variant="outline" className="bg-[#255F38] text-white">
-                                €{payment.amount.toFixed(2)}
+                                €{payment.amount}
                               </Badge>
                             </div>
                             <CardDescription>
@@ -777,7 +831,7 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                           />
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Available pool amount: €{availablePoolAmount.toFixed(2)}
+                          Available pool amount: €{availablePoolAmount}
                         </div>
                       </div>
                       <DialogFooter>
@@ -808,7 +862,7 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                           <div className="flex justify-between items-start">
                             <CardTitle className="text-lg">Team Expense</CardTitle>
                             <Badge variant="outline" className="bg-[#255F38] text-white">
-                              €{expense.amount.toFixed(2)}
+                              €{expense.amount}
                             </Badge>
                           </div>
                           <CardDescription>Date: {new Date(expense.date).toLocaleDateString()}</CardDescription>
