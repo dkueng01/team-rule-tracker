@@ -44,19 +44,9 @@ export async function GET(req: NextRequest, { params }: { params: { teamId: stri
             client.query(`SELECT * FROM rules WHERE team_id = $1`, [teamId]),
             client.query(`SELECT * FROM rule_breaks WHERE team_id = $1`, [teamId]),
             client.query(`SELECT * FROM payments WHERE team_id = $1`, [teamId]),
-            client.query(`SELECT * FROM expenses WHERE team_id = $1`, [teamId])
+            client.query(`SELECT * FROM expenses WHERE team_id = $1`, [teamId]),
+            client.query(`SELECT tm.user_id AS id, u.name FROM team_members tm JOIN neon_auth.users_sync u ON tm.user_id = u.id WHERE tm.team_id = $1`, [teamId])
         ]
-
-        if (isAdmin) {
-            promises.push(
-                client.query(`
-                SELECT tm.user_id AS id, u.name
-                FROM team_members tm
-                JOIN neon_auth.users_sync u ON tm.user_id = u.id
-                WHERE tm.team_id = $1
-                `, [teamId])
-            )
-        }
 
         const results = await Promise.all(promises)
 

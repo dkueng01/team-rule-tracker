@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { users } from "@/data/users"
 
 export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: string }> }) {
   useUser({ or: 'redirect' });
@@ -24,6 +23,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
   const [teamRuleBreaks, setTeamRuleBreaks] = useState<any[]>([])
   const [teamPayments, setTeamPayments] = useState<any[]>([])
   const [teamExpenses, setTeamExpenses] = useState<any[]>([])
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [userDebt, setUserDebt] = useState(0)
   const [totalPoolAmount, setTotalPoolAmount] = useState(0)
   const [currentPoolAmount, setCurrentPoolAmount] = useState(0)
@@ -56,6 +56,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
       setTeamRuleBreaks(data.ruleBreaks)
       setTeamPayments(data.payments)
       setTeamExpenses(data.expenses)
+      setTeamMembers(data.teamMembers)
 
       // Calculate user debt
       const userBreaks = data.ruleBreaks.filter((rb: any) => rb.user_id === user?.id)
@@ -231,7 +232,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
                     <div className="space-y-4">
                       {teamRuleBreaks.map((ruleBreak) => {
                         const rule = teamRules.find((r) => r.id === ruleBreak.ruleId)
-                        const userWhoBreak = users.find((u) => u.id === ruleBreak.userId)
+                        const userWhoBreak = teamMembers.find((u) => u.id === ruleBreak.userId)
                         return (
                           <Card key={ruleBreak.id}>
                             <CardHeader className="pb-2">
@@ -264,7 +265,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
                   ) : (
                     <div className="space-y-4">
                       {teamPayments.map((payment) => {
-                        const userWhoPaid = users.find((u) => u.id === payment.userId)
+                        const userWhoPaid = teamMembers.find((u) => u.id === payment.userId)
                         return (
                           <Card key={payment.id}>
                             <CardHeader className="pb-2">
