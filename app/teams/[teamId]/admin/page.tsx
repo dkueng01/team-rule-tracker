@@ -3,7 +3,7 @@ import { useUser } from "@stackframe/stack";
 
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, LogOut, Plus, ShoppingBag } from "lucide-react"
+import { ArrowLeft, LogOut, Plus, ShoppingBag, Pencil, Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -50,7 +50,9 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
   const [newRuleName, setNewRuleName] = useState("")
   const [newRuleDescription, setNewRuleDescription] = useState("")
   const [newRuleAmount, setNewRuleAmount] = useState("")
-  const [showNewRuleDialog, setShowNewRuleDialog] = useState(false)
+  const [showRuleDialog, setShowRuleDialog] = useState(false)
+  const [editingRule, setEditingRule] = useState<any | null>(null)
+
 
   // New rule break form
   const [newBreakRuleId, setNewBreakRuleId] = useState("")
@@ -115,6 +117,14 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
     fetchTeamData()
   }, [isMember, loading, teamId])
 
+  useEffect(() => {
+    if (editingRule) {
+      setNewRuleName(editingRule.name)
+      setNewRuleDescription(editingRule.description)
+      setNewRuleAmount(editingRule.amount.toString())
+    }
+  }, [editingRule])
+
   const handleLogout = () => {
     user?.signOut();
     router.push("/")
@@ -124,30 +134,90 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
     router.push(`/teams/${teamId}`)
   }
 
-  const handleAddRule = () => {
-    // Validate form
-    if (!newRuleName || !newRuleAmount) {
+  const handleSaveRule = async () => {
+    if (!newRuleName || !newRuleAmount) return
+
+    const payload = {
+      name: newRuleName,
+      description: newRuleDescription,
+      amount: parseFloat(newRuleAmount),
+    }
+
+    const url = editingRule
+      ? `/api/teams/${teamId}/rules/${editingRule.id}`
+      : `/api/teams/${teamId}/rules`
+
+    const method = editingRule ? "PUT" : "POST"
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      console.error("Failed to save rule")
       return
     }
 
-    // In a real app, this would call an API
-    const newRule = {
-      id: rules.length + 1,
-      teamId: teamId,
-      name: newRuleName,
-      description: newRuleDescription,
-      amount: Number.parseFloat(newRuleAmount),
-      createdAt: new Date().toISOString(),
+    const rule = await res.json()
+
+    setTeamRules((prev) => {
+      if (editingRule) {
+        return prev.map((r) => (r.id === rule.id ? rule : r))
+      } else {
+        return [...prev, rule]
+      }
+    })
+
+    resetRuleForm()
+    setEditingRule(null)
+    setShowRuleDialog(false)
+  }
+
+  const handleDeleteRule = async (ruleId: number) => {
+    const confirmDelete = confirm("Are you sure you want to delete this rule?")
+    if (!confirmDelete) return
+
+    const res = await fetch(`/api/teams/${teamId}/rules/${ruleId}`, {
+      method: "DELETE",
+    })
+
+    if (!res.ok) {
+      console.error("Failed to delete rule")
+      return
     }
 
-    // Update local state
-    setTeamRules([...teamRules, newRule])
+    setTeamRules((prev) => prev.filter((rule) => rule.id !== ruleId))
+  }
 
-    // Reset form
+  const handleEditRule = async (updatedRule: {
+    id: number;
+    name: string;
+    description: string;
+    amount: number;
+  }) => {
+    const res = await fetch(`/api/teams/${teamId}/rules/${updatedRule.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedRule),
+    })
+
+    if (!res.ok) {
+      console.error("Failed to update rule")
+      return
+    }
+
+    const result = await res.json()
+    setTeamRules((prev) =>
+      prev.map((r) => (r.id === result.id ? result : r))
+    )
+  }
+
+  const resetRuleForm = () => {
     setNewRuleName("")
     setNewRuleDescription("")
     setNewRuleAmount("")
-    setShowNewRuleDialog(false)
   }
 
   const handleAddRuleBreak = () => {
@@ -377,15 +447,21 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
               <TabsContent value="rules">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-semibold">Team Rules</h3>
-                  <Dialog open={showNewRuleDialog} onOpenChange={setShowNewRuleDialog}>
+                  <Dialog open={showRuleDialog} onOpenChange={(open) => {
+                    if (!open) {
+                      setEditingRule(null) // reset on close
+                      resetRuleForm()
+                    }
+                    setShowRuleDialog(open)
+                  }}>
                     <DialogTrigger asChild>
-                      <Button className="bg-[#255F38] hover:bg-[#1d4a2c]">
+                      <Button onClick={() => setShowRuleDialog(true)} className="bg-[#255F38] hover:bg-[#1d4a2c]">
                         <Plus className="h-4 w-4 mr-2" /> Add Rule
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Add New Rule</DialogTitle>
+                        <DialogTitle>{editingRule ? "Update Rule" : "Add New Rule"}</DialogTitle>
                         <DialogDescription>
                           Create a new rule for your team. Rules define the cost of breaking them.
                         </DialogDescription>
@@ -423,11 +499,11 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowNewRuleDialog(false)}>
+                        <Button variant="outline" onClick={() => {resetRuleForm(); setEditingRule(null); setShowRuleDialog(false)}}>
                           Cancel
                         </Button>
-                        <Button onClick={handleAddRule} className="bg-[#255F38] hover:bg-[#1d4a2c]">
-                          Add Rule
+                        <Button onClick={handleSaveRule} className="bg-[#255F38] hover:bg-[#1d4a2c]">
+                          {editingRule ? "Update Rule" : "Add Rule"}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -441,11 +517,30 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                     {teamRules.map((rule) => (
                       <Card key={rule.id}>
                         <CardHeader className="pb-2">
-                          <div className="flex justify-between items-start">
+                          <div className="flex justify-between items-center">
                             <CardTitle className="text-lg">{rule.name}</CardTitle>
-                            <Badge variant="outline" className="bg-[#255F38] text-white">
-                              €{rule.amount.toFixed(2)}
-                            </Badge>
+                            <div className="flex gap-2">
+                              <Badge variant="outline" className="bg-[#255F38] text-white">
+                                €{rule.amount}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className="cursor-pointer text-white"
+                                onClick={() => {
+                                  setEditingRule(rule)
+                                  setShowRuleDialog(true)
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className="cursor-pointer text-red-500"
+                                onClick={() => handleDeleteRule(rule.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Badge>
+                            </div>
                           </div>
                         </CardHeader>
                         <CardContent>
@@ -481,7 +576,7 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                             <SelectContent>
                               {teamRules.map((rule) => (
                                 <SelectItem key={rule.id} value={rule.id.toString()}>
-                                  {rule.name} (€{rule.amount.toFixed(2)})
+                                  {rule.name} (€{rule.amount})
                                 </SelectItem>
                               ))}
                             </SelectContent>
