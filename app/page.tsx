@@ -28,10 +28,6 @@ export default function TeamsPage() {
     fetchUserTeams()
   }, [])
 
-  useEffect(() => {
-    console.log('userTeams', userTeams);
-  }, [userTeams]);
-
   const handleLogout = () => {
     if (!user) return
     user.signOut()

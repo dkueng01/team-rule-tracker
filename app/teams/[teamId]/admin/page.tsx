@@ -104,13 +104,13 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
 
       const totalBreakAmount = data.ruleBreaks.reduce((total: number, rb: any) => {
         const ruleAmount = data.rules.find((r: any) => r.id === rb.rule_id)?.amount || 0
-        return total + ruleAmount
+        return total + Number(ruleAmount)
       }, 0)
 
-      const totalPaymentAmount = data.payments.reduce((total: number, p: any) => total + p.amount, 0)
-      const totalExpenseAmount = data.expenses.reduce((total: number, e: any) => total + e.amount, 0)
+      const totalPaymentAmount = data.payments.reduce((total: number, p: any) => total + Number(p.amount), 0)
+      const totalExpenseAmount = data.expenses.reduce((total: number, e: any) => total + Number(e.amount), 0)
 
-      setTotalPoolAmount(totalBreakAmount)
+      setTotalPoolAmount(totalBreakAmount - totalExpenseAmount)
       setCurrentPoolAmount(totalPaymentAmount)
       setAvailablePoolAmount(totalPaymentAmount - totalExpenseAmount)
     }

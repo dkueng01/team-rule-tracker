@@ -62,23 +62,23 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
       const userBreaks = data.ruleBreaks.filter((rb: any) => rb.user_id === user?.id)
       const userBreakTotal = userBreaks.reduce((total: number, rb: any) => {
         const ruleAmount = data.rules.find((r: any) => r.id === rb.rule_id)?.amount || 0
-        return total + ruleAmount
+        return total + Number(ruleAmount)
       }, 0)
 
       const userPayments = data.payments.filter((p: any) => p.user_id === user?.id)
-      const userPaymentTotal = userPayments.reduce((total: number, p: any) => total + p.amount, 0)
+      const userPaymentTotal = userPayments.reduce((total: number, p: any) => total + Number(p.amount), 0)
 
       setUserDebt(userBreakTotal - userPaymentTotal)
 
       const totalBreakAmount = data.ruleBreaks.reduce((total: number, rb: any) => {
         const ruleAmount = data.rules.find((r: any) => r.id === rb.rule_id)?.amount || 0
-        return total + ruleAmount
+        return total + Number(ruleAmount)
       }, 0)
 
       const totalPaymentAmount = data.payments.reduce((total: number, p: any) => total + p.amount, 0)
       const totalExpenseAmount = data.expenses.reduce((total: number, e: any) => total + e.amount, 0)
 
-      setTotalPoolAmount(totalBreakAmount)
+      setTotalPoolAmount(totalBreakAmount - totalExpenseAmount)
       setCurrentPoolAmount(totalPaymentAmount)
       setAvailablePoolAmount(totalPaymentAmount - totalExpenseAmount)
     }
