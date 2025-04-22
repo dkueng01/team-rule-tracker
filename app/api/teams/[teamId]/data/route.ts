@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamId: stri
 
         // Then: fetch team
         const team = await client.query(
-        `SELECT id, name, description FROM teams WHERE id = $1`,
+        `SELECT id, name, description, join_code, join_enabled FROM teams WHERE id = $1`,
         [teamId]
         )
 
@@ -46,7 +46,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamId: stri
             client.query(`SELECT * FROM rule_breaks WHERE team_id = $1`, [teamId]),
             client.query(`SELECT * FROM payments WHERE team_id = $1`, [teamId]),
             client.query(`SELECT * FROM expenses WHERE team_id = $1`, [teamId]),
-            client.query(`SELECT tm.user_id AS id, u.name FROM team_members tm JOIN neon_auth.users_sync u ON tm.user_id = u.id WHERE tm.team_id = $1`, [teamId])
+            client.query(`SELECT tm.user_id AS id, u.name, u.email FROM team_members tm JOIN neon_auth.users_sync u ON tm.user_id = u.id WHERE tm.team_id = $1`, [teamId]),
+            client.query(`SELECT jr.id, jr.user_id, u.name, u.email AS user_name, jr.created_at FROM team_join_requests jr LEFT JOIN neon_auth.users_sync u ON jr.user_id = u.id WHERE jr.team_id = $1 AND jr.approved IS NULL AND jr.rejected IS NULL ORDER BY jr.created_at ASC`, [teamId])
         ]
 
         const results = await Promise.all(promises)
@@ -56,6 +57,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamId: stri
         const payments: QueryResult = results[2]
         const expenses: QueryResult = results[3]
         const teamMembers: QueryResult = results[4] ?? { rows: [] }
+        const joinRequests: QueryResult = results[5] ?? { rows: [] }
 
         return NextResponse.json({
             team: team.rows[0],
@@ -65,7 +67,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamId: stri
             ruleBreaks: ruleBreaks.rows,
             payments: payments.rows,
             expenses: expenses.rows,
-            teamMembers: teamMembers.rows
+            teamMembers: teamMembers.rows,
+            joinRequests: joinRequests.rows
         })
     } finally {
         client.release()
