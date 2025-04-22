@@ -616,24 +616,13 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                   <div className="flex flex-col gap-2">
                     {joinRequests.map((req) => (
                       <div key={req.id} className="flex items-center gap-2">
-                        <span>{req.user_name || req.user_id}</span>
-                        <Button
-                          size="sm"
-                          onClick={async () => {
-                            // Placeholder: Accept join request
-                          }}
-                        >
+                        <span>{req.user_name || req.user_name}</span>
+                        <Badge variant="outline" className="px-2 py-1 gap-2 cursor-pointer">
                           <Check className="h-4 w-4 text-green-600" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={async () => {
-                            // Placeholder: Decline join request
-                          }}
-                        >
+                        </Badge>
+                        <Badge variant="outline" className="px-2 py-1 gap-2 cursor-pointer">
                           <X className="h-4 w-4 text-red-600" />
-                        </Button>
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -1110,7 +1099,7 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
                               </Badge>
                               <Badge
                                 variant="outline"
-                                className="cursor-pointer text-white"
+                                className="cursor-pointer text-white px-2 py-1"
                                 onClick={() => {
                                   setEditingExpense(expense)
                                   setShowExpenseDialog(true)
