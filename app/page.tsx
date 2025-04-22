@@ -18,11 +18,18 @@ export default function TeamsPage() {
   const user = useUser();
   const [loading, setLoading] = useState(true);
   const [userTeams, setUserTeams] = useState<Team[]>([])
+
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [createName, setCreateName] = useState("")
   const [createDescription, setCreateDescription] = useState("")
   const [createLoading, setCreateLoading] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+
+  const [showJoinDialog, setShowJoinDialog] = useState(false)
+  const [joinCode, setJoinCode] = useState("")
+  const [joinLoading, setJoinLoading] = useState(false)
+  const [joinError, setJoinError] = useState<string | null>(null)
+
   const router = useRouter()
 
   useEffect(() => {
@@ -107,56 +114,109 @@ export default function TeamsPage() {
 
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Your Teams</h2>
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                Create New Team
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create a New Team</DialogTitle>
-                <DialogDescription>
-                  You can only create one team. Enter a name and (optionally) a description.
-                </DialogDescription>
-              </DialogHeader>
-              <form
-                onSubmit={handleCreateTeam}
-                className="space-y-4"
-              >
-                <div>
-                  <Label htmlFor="team-name">Team Name</Label>
-                  <Input
-                    id="team-name"
-                    value={createName}
-                    onChange={(e) => setCreateName(e.target.value)}
-                    required
-                    disabled={createLoading}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="team-description">Description (optional)</Label>
-                  <Input
-                    id="team-description"
-                    value={createDescription}
-                    onChange={(e) => setCreateDescription(e.target.value)}
-                    disabled={createLoading}
-                  />
-                </div>
-                {createError && (
-                  <div className="text-red-500 text-sm">{createError}</div>
-                )}
-                <DialogFooter>
-                  <Button
-                    type="submit"
-                    disabled={createLoading}
-                  >
-                    {createLoading ? "Creating..." : "Create Team"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <div className="flex items-center gap-2">
+            <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  Join Team
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Join a Team</DialogTitle>
+                  <DialogDescription>
+                    Enter the 8-character join code you received from your team admin.
+                  </DialogDescription>
+                </DialogHeader>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    setJoinLoading(true)
+                    setJoinError(null)
+                    await new Promise((resolve) => setTimeout(resolve, 1000))
+                    setJoinLoading(false)
+                    setShowJoinDialog(false)
+                    setJoinCode("")
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <Label htmlFor="join-code">Join Code</Label>
+                    <Input
+                      id="join-code"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      maxLength={8}
+                      minLength={8}
+                      required
+                      disabled={joinLoading}
+                    />
+                  </div>
+                  {joinError && (
+                    <div className="text-red-500 text-sm">{joinError}</div>
+                  )}
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      disabled={joinLoading || joinCode.length !== 8}
+                    >
+                      {joinLoading ? "Applying..." : "Apply to Join"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  Create New Team
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create a New Team</DialogTitle>
+                  <DialogDescription>
+                    You can only create one team. Enter a name and (optionally) a description.
+                  </DialogDescription>
+                </DialogHeader>
+                <form
+                  onSubmit={handleCreateTeam}
+                  className="space-y-4"
+                >
+                  <div>
+                    <Label htmlFor="team-name">Team Name</Label>
+                    <Input
+                      id="team-name"
+                      value={createName}
+                      onChange={(e) => setCreateName(e.target.value)}
+                      required
+                      disabled={createLoading}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="team-description">Description (optional)</Label>
+                    <Input
+                      id="team-description"
+                      value={createDescription}
+                      onChange={(e) => setCreateDescription(e.target.value)}
+                      disabled={createLoading}
+                    />
+                  </div>
+                  {createError && (
+                    <div className="text-red-500 text-sm">{createError}</div>
+                  )}
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      disabled={createLoading}
+                    >
+                      {createLoading ? "Creating..." : "Create Team"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {userTeams.length === 0 ?
