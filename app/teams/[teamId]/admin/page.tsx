@@ -3,7 +3,7 @@ import { useUser } from "@stackframe/stack";
 
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, LogOut, Plus, ShoppingBag, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft, LogOut, Plus, ShoppingBag, Pencil, Trash2, RefreshCw, Copy, Check, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 
 export default function AdminDashboardPage({ params }: { params: Promise<{ teamId: string }> }) {
   useUser({ or: 'redirect' });
@@ -69,6 +70,12 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
   const [showExpenseDialog, setShowExpenseDialog] = useState(false)
   const [editingExpense, setEditingExpense] = useState<any | null>(null)
 
+  // Memberships
+  const [joinCode, setJoinCode] = useState<string>("")
+  const [joinEnabled, setJoinEnabled] = useState<boolean>(true)
+  const [joinRequests, setJoinRequests] = useState<any[]>([])
+
+
   const router = useRouter()
 
   useEffect(() => {
@@ -98,6 +105,9 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
       setTeamPayments(data.payments)
       setTeamExpenses(data.expenses)
       setTeamMembers(data.teamMembers)
+      setJoinCode(data.team.join_code)
+      setJoinEnabled(data.team.join_enabled)
+      setJoinRequests(data.joinRequests || [])
 
       const totalBreakAmount = data.ruleBreaks.reduce((total: number, rb: any) => {
         const ruleAmount = data.rules.find((r: any) => r.id === rb.rule_id)?.amount || 0
@@ -482,6 +492,49 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
               </div>
             </div>
 
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-6">
+              <div className="flex items-center gap-2">
+                <Label>Join Code:</Label>
+                <Input
+                  value={joinCode}
+                  readOnly
+                  className="w-32 font-mono"
+                  onClick={() => {
+                    navigator.clipboard.writeText(joinCode)
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(joinCode)
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    // Placeholder: Regenerate join code
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="join-enabled">Joining Enabled:</Label>
+                <Switch
+                  id="join-enabled"
+                  checked={joinEnabled}
+                  onCheckedChange={async (checked) => {
+                    setJoinEnabled(checked)
+                    // Placeholder: Call API to update join_enabled
+                  }}
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <Card>
                 <CardHeader>
@@ -535,11 +588,56 @@ export default function AdminDashboardPage({ params }: { params: Promise<{ teamI
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {teamMembers.map((member) => (
-                    <Badge key={member.id} variant="outline" className="px-2 py-1">
-                      {member.name}
-                    </Badge>
+                    <div key={member.id} className="flex items-center gap-2">
+                      <Badge variant="outline" className="px-2 py-1 gap-2">
+                        {member.name}
+                        {member.role !== "owner" && member.id !== user?.id && (
+                          <Trash2 className="h-4 w-4 text-red-600 cursor-pointer" onClick={async () => {}} />
+                        )}
+                      </Badge>
+                    </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+
+
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Pending Join Requests</CardTitle>
+                <CardDescription>
+                  Approve or decline new members.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {joinRequests.length === 0 ? (
+                  <p>No pending join requests.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {joinRequests.map((req) => (
+                      <div key={req.id} className="flex items-center gap-2">
+                        <span>{req.user_name || req.user_id}</span>
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            // Placeholder: Accept join request
+                          }}
+                        >
+                          <Check className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={async () => {
+                            // Placeholder: Decline join request
+                          }}
+                        >
+                          <X className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
