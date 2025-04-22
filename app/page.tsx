@@ -88,6 +88,25 @@ export default function TeamsPage() {
     setLoading(false)
   }
 
+  const handleJoinTeam = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setJoinLoading(true)
+    setJoinError(null)
+    const res = await fetch("/api/teams/join-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ joinCode }),
+    })
+    const data = await res.json()
+    setJoinLoading(false)
+    if (!res.ok) {
+      setJoinError(data.error || "Failed to apply for team")
+      return
+    }
+    setShowJoinDialog(false)
+    setJoinCode("")
+  }
+
   if (!user) {
     return null
   }
@@ -128,18 +147,7 @@ export default function TeamsPage() {
                     Enter the 8-character join code you received from your team admin.
                   </DialogDescription>
                 </DialogHeader>
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault()
-                    setJoinLoading(true)
-                    setJoinError(null)
-                    await new Promise((resolve) => setTimeout(resolve, 1000))
-                    setJoinLoading(false)
-                    setShowJoinDialog(false)
-                    setJoinCode("")
-                  }}
-                  className="space-y-4"
-                >
+                <form onSubmit={handleJoinTeam} className="space-y-4">
                   <div>
                     <Label htmlFor="join-code">Join Code</Label>
                     <Input
