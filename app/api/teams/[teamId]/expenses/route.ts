@@ -19,10 +19,11 @@ export async function POST(req: NextRequest, { params }: { params: { teamId: str
   const client = await pool.connect()
   try {
     const result = await client.query(
-      `SELECT is_admin FROM team_members WHERE team_id = $1 AND user_id = $2`,
+      `SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2`,
       [teamId, user.id]
     )
-    if (result.rows.length === 0 || !result.rows[0].is_admin) {
+    const role = result.rows[0]?.role
+    if (result.rows.length === 0 || !(role === "admin" || role === "owner")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 

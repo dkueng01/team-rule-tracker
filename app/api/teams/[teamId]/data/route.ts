@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamId: stri
     try {
         // First: check membership
         const membershipResult = await client.query(
-        `SELECT is_admin FROM team_members WHERE team_id = $1 AND user_id = $2`,
+        `SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2`,
         [teamId, user.id]
         )
 
@@ -27,7 +27,8 @@ export async function GET(req: NextRequest, { params }: { params: { teamId: stri
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
 
-        const isAdmin = membershipResult.rows[0].is_admin
+        const role = membershipResult.rows[0].role;
+        const isAdmin = role === "admin" || role === "owner";
 
         // Then: fetch team
         const team = await client.query(
@@ -59,6 +60,7 @@ export async function GET(req: NextRequest, { params }: { params: { teamId: stri
         return NextResponse.json({
             team: team.rows[0],
             isAdmin,
+            role,
             rules: rules.rows,
             ruleBreaks: ruleBreaks.rows,
             payments: payments.rows,

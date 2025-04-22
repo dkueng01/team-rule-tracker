@@ -20,17 +20,16 @@ export async function POST(
 
   const client = await pool.connect()
   try {
-    // Ensure user is admin
     const membership = await client.query(
-      `SELECT is_admin FROM team_members WHERE team_id = $1 AND user_id = $2`,
+      `SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2`,
       [teamId, user.id]
     )
 
-    if (membership.rows.length === 0 || !membership.rows[0].is_admin) {
+    const role = membership.rows[0]?.role
+    if (membership.rows.length === 0 || !(role === "admin" || role === "owner")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Create the rule break
     const result = await client.query(
       `INSERT INTO rule_breaks (team_id, rule_id, user_id, description, date)
        VALUES ($1, $2, $3, $4, NOW())

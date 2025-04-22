@@ -4,9 +4,13 @@ import { Pool } from "pg"
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
-export async function PUT(req: NextRequest, { params }: { params: { teamId: string; paymentId: string } }) {
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { teamId: string; paymentId: string } }
+) {
   const user = await stackServerApp.getUser()
-  if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const teamId = parseInt(params.teamId)
   const paymentId = parseInt(params.paymentId)
@@ -15,10 +19,11 @@ export async function PUT(req: NextRequest, { params }: { params: { teamId: stri
   const client = await pool.connect()
   try {
     const membership = await client.query(
-      `SELECT is_admin FROM team_members WHERE team_id = $1 AND user_id = $2`,
+      `SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2`,
       [teamId, user.id]
     )
-    if (membership.rows.length === 0 || !membership.rows[0].is_admin) {
+    const role = membership.rows[0]?.role
+    if (membership.rows.length === 0 || !(role === "admin" || role === "owner")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -36,9 +41,13 @@ export async function PUT(req: NextRequest, { params }: { params: { teamId: stri
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { teamId: string; paymentId: string } }) {
+export async function DELETE(
+  _: NextRequest,
+  { params }: { params: { teamId: string; paymentId: string } }
+) {
   const user = await stackServerApp.getUser()
-  if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const teamId = parseInt(params.teamId)
   const paymentId = parseInt(params.paymentId)
@@ -46,10 +55,11 @@ export async function DELETE(_: NextRequest, { params }: { params: { teamId: str
   const client = await pool.connect()
   try {
     const membership = await client.query(
-      `SELECT is_admin FROM team_members WHERE team_id = $1 AND user_id = $2`,
+      `SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2`,
       [teamId, user.id]
     )
-    if (membership.rows.length === 0 || !membership.rows[0].is_admin) {
+    const role = membership.rows[0]?.role
+    if (membership.rows.length === 0 || !(role === "admin" || role === "owner")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 

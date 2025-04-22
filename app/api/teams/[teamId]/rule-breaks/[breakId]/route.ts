@@ -9,7 +9,8 @@ export async function PUT(
   { params }: { params: { teamId: string; breakId: string } }
 ) {
   const user = await stackServerApp.getUser()
-  if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const teamId = parseInt(params.teamId)
   const breakId = parseInt(params.breakId)
@@ -17,13 +18,13 @@ export async function PUT(
 
   const client = await pool.connect()
   try {
-    // Check admin status
     const membership = await client.query(
-      `SELECT is_admin FROM team_members WHERE team_id = $1 AND user_id = $2`,
+      `SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2`,
       [teamId, user.id]
     )
 
-    if (membership.rows.length === 0 || !membership.rows[0].is_admin) {
+    const role = membership.rows[0]?.role
+    if (membership.rows.length === 0 || !(role === "admin" || role === "owner")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -50,20 +51,21 @@ export async function DELETE(
   { params }: { params: { teamId: string; breakId: string } }
 ) {
   const user = await stackServerApp.getUser()
-  if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const teamId = parseInt(params.teamId)
   const breakId = parseInt(params.breakId)
 
   const client = await pool.connect()
   try {
-    // Check admin status
     const membership = await client.query(
-      `SELECT is_admin FROM team_members WHERE team_id = $1 AND user_id = $2`,
+      `SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2`,
       [teamId, user.id]
     )
 
-    if (membership.rows.length === 0 || !membership.rows[0].is_admin) {
+    const role = membership.rows[0]?.role
+    if (membership.rows.length === 0 || !(role === "admin" || role === "owner")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
